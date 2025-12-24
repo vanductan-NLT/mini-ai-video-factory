@@ -140,6 +140,30 @@ class ProcessingJob:
 _processing_jobs: Dict[str, ProcessingJob] = {}
 
 # Initialize Supabase client
+def safe_json_parse(json_str: str) -> Optional[Dict[str, Any]]:
+    """Safely parse JSON string that might be double-encoded"""
+    if not json_str:
+        return None
+    
+    try:
+        # Handle various JSON encoding issues
+        if isinstance(json_str, str):
+            # Remove extra quotes and fix escaping
+            if json_str.startswith('"{') and json_str.endswith('}"'):
+                json_str = json_str[1:-1]  # Remove outer quotes
+                json_str = json_str.replace('\\"', '"')  # Fix escaped quotes
+            elif json_str.startswith('"') and json_str.endswith('"') and json_str.count('"') > 2:
+                json_str = json_str[1:-1]  # Remove outer quotes
+                json_str = json_str.replace('\\"', '"')  # Fix escaped quotes
+            
+            return json.loads(json_str)
+        else:
+            return json_str
+    except (json.JSONDecodeError, TypeError) as e:
+        print(f"Error parsing JSON: {e}")
+        print(f"Raw JSON: {repr(json_str)}")
+        return None
+
 def get_supabase_client() -> Optional[Client]:
     """Get Supabase client for database operations"""
     try:
@@ -270,30 +294,87 @@ def get_user_jobs(user_id: str) -> List[ProcessingJob]:
                 # Skip if already in memory
                 if job_id in _processing_jobs:
                     continue
-                    
-                job = ProcessingJob(
-                    id=job_data['id'],
-                    user_id=job_data['user_id'],
-                    original_filename=job_data['original_filename'],
-                    status=ProcessingStatus(job_data['status']),
-                    progress=job_data['progress'],
-                    created_at=datetime.fromisoformat(job_data['created_at'].replace('Z', '+00:00')) if job_data['created_at'] else None,
-                    completed_at=datetime.fromisoformat(job_data['completed_at'].replace('Z', '+00:00')) if job_data['completed_at'] else None,
-                    error_message=job_data['error_message'],
-                    input_file_path=job_data.get('input_file_path'),
-                    output_file_path=job_data.get('output_file_path'),
-                    input_storage_key=job_data['input_storage_key'],
-                    output_storage_key=job_data['output_storage_key'],
-                    video_info=json.loads(job_data['video_info']) if job_data.get('video_info') else None,
-                    processed_video_info=json.loads(job_data['processed_video_info']) if job_data.get('processed_video_info') else None
-                )
                 
-                jobs.append(job)
-                # Cache in memory
-                _processing_jobs[job_id] = job
+                try:
+                    # Parse datetime fields safely
+                    created_at = None
+                    if job_data.get('created_at'):
+                        created_at_str = job_data['created_at']
+                        if created_at_str.endswith('Z'):
+                            created_at_str = created_at_str.replace('Z', '+00:00')
+                        elif '+00' in created_at_str and not created_at_str.endswith('+00:00'):
+                            created_at_str = created_at_str.replace('+00', '+00:00')
+                        created_at = datetime.fromisoformat(created_at_str)
+                    
+                    completed_at = None
+                    if job_data.get('completed_at'):
+                        completed_at_str = job_data['completed_at']
+                        if completed_at_str.endswith('Z'):
+                            completed_at_str = completed_at_str.replace('Z', '+00:00')
+                        elif '+00' in completed_at_str and not completed_at_str.endswith('+00:00'):
+                            completed_at_str = completed_at_str.replace('+00', '+00:00')
+                        completed_at = datetime.fromisoformat(completed_at_str)
+                    
+                    # Parse JSON fields safely
+                    video_info = None
+                    if job_data.get('video_info'):
+                        try:
+                            video_info_str = job_data['video_info']
+                            # Handle double-encoded JSON
+                            if isinstance(video_info_str, str) and video_info_str.startswith('"{'):
+                                video_info_str = json.loads(video_info_str)
+                            if isinstance(video_info_str, str):
+                                video_info = json.loads(video_info_str)
+                            else:
+                                video_info = video_info_str
+                        except (json.JSONDecodeError, TypeError) as e:
+                            print(f"Error parsing video_info for job {job_id}: {e}")
+                            video_info = None
+                    
+                    processed_video_info = None
+                    if job_data.get('processed_video_info'):
+                        try:
+                            processed_info_str = job_data['processed_video_info']
+                            # Handle double-encoded JSON
+                            if isinstance(processed_info_str, str) and processed_info_str.startswith('"{'):
+                                processed_info_str = json.loads(processed_info_str)
+                            if isinstance(processed_info_str, str):
+                                processed_video_info = json.loads(processed_info_str)
+                            else:
+                                processed_video_info = processed_info_str
+                        except (json.JSONDecodeError, TypeError) as e:
+                            print(f"Error parsing processed_video_info for job {job_id}: {e}")
+                            processed_video_info = None
+                    
+                    job = ProcessingJob(
+                        id=job_data['id'],
+                        user_id=job_data['user_id'],
+                        original_filename=job_data['original_filename'],
+                        status=ProcessingStatus(job_data['status']),
+                        progress=job_data['progress'],
+                        created_at=created_at,
+                        completed_at=completed_at,
+                        error_message=job_data['error_message'],
+                        input_file_path=job_data.get('input_file_path'),
+                        output_file_path=job_data.get('output_file_path'),
+                        input_storage_key=job_data['input_storage_key'],
+                        output_storage_key=job_data['output_storage_key'],
+                        video_info=video_info,
+                        processed_video_info=processed_video_info
+                    )
+                    
+                    jobs.append(job)
+                    # Cache in memory
+                    _processing_jobs[job_id] = job
+                    
+                except Exception as e:
+                    print(f"Error processing job {job_id}: {e}")
+                    continue
                 
         except Exception as e:
             print(f"Error loading user jobs from Supabase: {e}")
+            import traceback
+            traceback.print_exc()
     
     # Sort by created_at descending
     jobs.sort(key=lambda x: x.created_at.replace(tzinfo=None) if x.created_at else datetime.min, reverse=True)

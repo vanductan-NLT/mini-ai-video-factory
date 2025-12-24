@@ -233,11 +233,56 @@ def upload_progress(job_id):
 @login_required
 def user_jobs():
     """Get all jobs for the current user"""
-    jobs = get_user_jobs(current_user.get_id())
-    
-    return jsonify({
-        'jobs': [job.to_dict() for job in jobs]
-    })
+    try:
+        user_id = current_user.get_id()
+        app.logger.info(f"Loading jobs for user: {user_id}")
+        
+        jobs = get_user_jobs(user_id)
+        app.logger.info(f"Found {len(jobs)} jobs for user {user_id}")
+        
+        jobs_data = []
+        for job in jobs:
+            try:
+                job_dict = job.to_dict()
+                jobs_data.append(job_dict)
+                app.logger.info(f"Job {job.id}: {job.original_filename} - {job.status.value}")
+            except Exception as e:
+                app.logger.error(f"Error converting job {job.id} to dict: {e}")
+                continue
+        
+        return jsonify({
+            'jobs': jobs_data
+        })
+    except Exception as e:
+        app.logger.error(f"Error in user_jobs route: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to load jobs', 'jobs': []}), 500
+
+@app.route('/debug/jobs')
+@login_required
+def debug_jobs():
+    """Debug route to check jobs in database"""
+    try:
+        from models.processing_job import get_supabase_client
+        
+        supabase = get_supabase_client()
+        if not supabase:
+            return jsonify({'error': 'Supabase not available'})
+        
+        user_id = current_user.get_id()
+        result = supabase.table('processing_jobs').select('*').eq('user_id', user_id).execute()
+        
+        return jsonify({
+            'user_id': user_id,
+            'raw_data': result.data,
+            'count': len(result.data)
+        })
+    except Exception as e:
+        app.logger.error(f"Debug jobs error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/process_video/<job_id>', methods=['POST'])
 @login_required
