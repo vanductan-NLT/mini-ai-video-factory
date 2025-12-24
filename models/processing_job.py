@@ -244,5 +244,5 @@ def get_user_jobs(user_id: str) -> List[ProcessingJob]:
             print(f"Error loading user jobs from Supabase: {e}")
     
     # Sort by created_at descending
-    jobs.sort(key=lambda x: x.created_at or datetime.min, reverse=True)
+    jobs.sort(key=lambda x: x.created_at.replace(tzinfo=None) if x.created_at else datetime.min, reverse=True)
     return jobs

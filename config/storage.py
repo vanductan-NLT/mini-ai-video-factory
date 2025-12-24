@@ -6,6 +6,10 @@ Manages connection settings and credentials for Wasabi cloud storage.
 
 import os
 from typing import Dict, Any
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class WasabiConfig:
     """Configuration class for Wasabi storage settings"""
@@ -15,8 +19,8 @@ class WasabiConfig:
         self.endpoint = os.environ.get('WASABI_ENDPOINT')
         self.region = os.environ.get('WASABI_REGION', 'us-east-1')
         self.bucket = os.environ.get('WASABI_BUCKET')
-        self.access_key_id = os.environ.get('WASABI_ACCESS_KEY_ID')
-        self.secret_access_key = os.environ.get('WASABI_SECRET_ACCESS_KEY')
+        self.access_key_id = os.environ.get('WASABI_ACCESS_KEY_ID') or os.environ.get('WASABI_ACCESS_KEY')
+        self.secret_access_key = os.environ.get('WASABI_SECRET_ACCESS_KEY') or os.environ.get('WASABI_SECRET_KEY')
         
         # Validate required settings
         self._validate_config()

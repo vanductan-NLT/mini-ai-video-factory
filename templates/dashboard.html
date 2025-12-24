@@ -144,6 +144,37 @@
         margin: 1rem 0;
         display: none;
     }
+    
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 5px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: inline-block;
+        text-align: center;
+    }
+    
+    .btn-primary {
+        background: #667eea;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #5a6fd8;
+    }
+    
+    .btn-success {
+        background: #28a745;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #218838;
+    }
 </style>
 {% endblock %}
 
@@ -391,6 +422,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const statusClass = getStatusClass(job.status);
             const createdAt = new Date(job.created_at).toLocaleString();
             
+            let actionButton = '';
+            if (job.status === 'uploaded') {
+                actionButton = `<button onclick="startProcessing('${job.id}')" class="btn btn-primary" style="margin-left: 1rem;">Start Processing</button>`;
+            } else if (job.status === 'completed') {
+                actionButton = `<a href="/download/${job.id}" class="btn btn-success" style="margin-left: 1rem;">Download</a>`;
+            }
+            
             return `
                 <div class="job-item">
                     <div class="job-info">
@@ -398,11 +436,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div style="font-size: 0.9rem; color: #666;">
                             Created: ${createdAt}
                             ${job.video_info ? ` | Duration: ${Math.round(job.video_info.duration)}s` : ''}
+                            ${job.progress > 0 ? ` | Progress: ${job.progress}%` : ''}
                         </div>
                         ${job.error_message ? `<div style="color: #dc3545; font-size: 0.8rem; margin-top: 0.25rem;">${job.error_message}</div>` : ''}
                     </div>
-                    <div class="job-status ${statusClass}">
-                        ${job.status.replace('_', ' ').toUpperCase()}
+                    <div style="display: flex; align-items: center;">
+                        <div class="job-status ${statusClass}">
+                            ${job.status.replace('_', ' ').toUpperCase()}
+                        </div>
+                        ${actionButton}
                     </div>
                 </div>
             `;
@@ -421,6 +463,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 return 'status-processing';
         }
     }
+    
+    // Global function to start processing
+    window.startProcessing = function(jobId) {
+        if (confirm('Start processing this video? This may take several minutes.')) {
+            showSuccess('Starting video processing...');
+            
+            fetch(`/process_video/${jobId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess('Video processing completed successfully!');
+                } else {
+                    showError(data.error || 'Processing failed');
+                }
+                loadUserJobs(); // Refresh jobs list
+            })
+            .catch(error => {
+                console.error('Processing error:', error);
+                showError('Processing failed. Please try again.');
+            });
+        }
+    };
 });
 </script>
 {% endblock %}

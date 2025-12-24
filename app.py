@@ -23,6 +23,7 @@ from models.processing_job import (
     get_processing_job, get_user_jobs
 )
 from utils.file_validation import validate_video_file, ValidationError, SUPPORTED_EXTENSIONS
+from processing.video_processor import VideoProcessor
 
 # Load environment variables from .env file
 load_dotenv()
@@ -46,6 +47,7 @@ login_manager.login_message = 'Please log in to access this page.'
 # Initialize AuthManager and StorageManager
 auth_manager = None
 storage_manager = None
+video_processor = None
 
 class FlaskUser(UserMixin):
     """Flask-Login user wrapper for our User model"""
@@ -101,6 +103,13 @@ try:
 except Exception as e:
     app.logger.error(f"Failed to initialize StorageManager: {str(e)}")
     storage_manager = None
+
+try:
+    video_processor = VideoProcessor(storage_manager)
+    app.logger.info("VideoProcessor initialized successfully")
+except Exception as e:
+    app.logger.error(f"Failed to initialize VideoProcessor: {str(e)}")
+    video_processor = None
 
 # Validate Wasabi configuration
 if wasabi_config.is_configured:
@@ -228,6 +237,110 @@ def user_jobs():
     return jsonify({
         'jobs': [job.to_dict() for job in jobs]
     })
+
+@app.route('/process_video/<job_id>', methods=['POST'])
+@login_required
+def process_video(job_id):
+    """Start video processing for a job"""
+    try:
+        job = get_processing_job(job_id)
+        
+        if not job or job.user_id != current_user.get_id():
+            return jsonify({'error': 'Job not found'}), 404
+        
+        if job.status != ProcessingStatus.UPLOADED:
+            return jsonify({'error': 'Job is not ready for processing'}), 400
+        
+        if video_processor is None:
+            return jsonify({'error': 'Video processor not available'}), 503
+        
+        # Start processing in background (for now, synchronous)
+        # In production, this should be done asynchronously with a task queue
+        def progress_callback(message: str, progress: int):
+            app.logger.info(f"Job {job_id} progress: {message} ({progress}%)")
+        
+        success = video_processor.process_video(job, progress_callback)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Video processing completed successfully',
+                'job_id': job.id
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': job.error_message or 'Processing failed',
+                'job_id': job.id
+            }), 500
+            
+    except Exception as e:
+        app.logger.error(f"Processing error for job {job_id}: {str(e)}")
+        return jsonify({'error': 'Processing failed. Please try again.'}), 500
+
+@app.route('/download/<job_id>')
+@login_required
+def download_video(job_id):
+    """Download processed video"""
+    try:
+        job = get_processing_job(job_id)
+        
+        if not job or job.user_id != current_user.get_id():
+            return jsonify({'error': 'Job not found'}), 404
+        
+        if job.status != ProcessingStatus.COMPLETED:
+            return jsonify({'error': 'Video processing not completed'}), 400
+        
+        if job.output_storage_key and storage_manager and storage_manager.is_available:
+            # Generate download URL for Wasabi storage
+            download_url = storage_manager.generate_download_url(job.output_storage_key)
+            if download_url:
+                return redirect(download_url)
+            else:
+                return jsonify({'error': 'Failed to generate download URL'}), 500
+        
+        elif job.output_file_path and os.path.exists(job.output_file_path):
+            # Serve from local storage
+            from flask import send_file
+            return send_file(
+                job.output_file_path,
+                as_attachment=True,
+                download_name=f"processed_{job.original_filename}"
+            )
+        
+        else:
+            return jsonify({'error': 'Processed video not found'}), 404
+            
+    except Exception as e:
+        app.logger.error(f"Download error for job {job_id}: {str(e)}")
+        return jsonify({'error': 'Download failed. Please try again.'}), 500
+
+@app.route('/processing_status/<job_id>')
+@login_required
+def processing_status(job_id):
+    """Get detailed processing status for a job"""
+    try:
+        job = get_processing_job(job_id)
+        
+        if not job or job.user_id != current_user.get_id():
+            return jsonify({'error': 'Job not found'}), 404
+        
+        return jsonify({
+            'job_id': job.id,
+            'status': job.status.value,
+            'status_display': job.get_status_display(),
+            'progress': job.progress,
+            'error_message': job.error_message,
+            'completed': job.is_completed(),
+            'created_at': job.created_at.isoformat() if job.created_at else None,
+            'completed_at': job.completed_at.isoformat() if job.completed_at else None,
+            'original_filename': job.original_filename,
+            'video_info': job.video_info
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Status check error for job {job_id}: {str(e)}")
+        return jsonify({'error': 'Status check failed'}), 500
 
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
