@@ -1,151 +1,115 @@
 """
-Authentication manager for Mini Video Factory with Supabase integration
+Simple Supabase Auth Manager for Mini Video Factory
+Uses Supabase Auth directly for authentication
 """
 
 import os
 import logging
-from typing import Optional, Dict, Any
-from werkzeug.security import generate_password_hash, check_password_hash
+from typing import Optional
 from supabase import create_client, Client
 from models.user import User
 
 
 class AuthManager:
-    """Manages user authentication with Supabase backend"""
+    """Simple authentication manager using Supabase Auth"""
     
     def __init__(self):
-        """Initialize AuthManager with Supabase client"""
+        """Initialize with Supabase client"""
         self.logger = logging.getLogger(__name__)
         
-        # Initialize Supabase client
+        # Get Supabase credentials
         supabase_url = os.environ.get('SUPABASE_URL')
         supabase_key = os.environ.get('SUPABASE_KEY')
         
         if not supabase_url or not supabase_key:
-            self.logger.error("Supabase configuration missing - check SUPABASE_URL and SUPABASE_KEY")
-            raise ValueError("Supabase configuration required")
+            raise ValueError("Missing SUPABASE_URL or SUPABASE_KEY environment variables")
         
-        self.supabase: Client = create_client(supabase_url, supabase_key)
-        self.logger.info("AuthManager initialized with Supabase client")
+        # Create Supabase client (without proxy argument for compatibility)
+        try:
+            self.supabase: Client = create_client(supabase_url, supabase_key)
+            self.logger.info("AuthManager initialized with Supabase")
+        except Exception as e:
+            self.logger.error(f"Failed to create Supabase client: {str(e)}")
+            raise
     
-    def authenticate_user(self, username: str, password: str) -> Optional[User]:
+    def authenticate_user(self, email: str, password: str) -> Optional[User]:
         """
-        Authenticate user with username and password
+        Authenticate user with email and password using Supabase Auth
         
         Args:
-            username: User's username
-            password: User's plain text password
+            email: User's email (used as username)
+            password: User's password
             
         Returns:
-            User object if authentication successful, None otherwise
+            User object if successful, None otherwise
         """
         try:
-            # Query user from Supabase
-            response = self.supabase.table('users').select('*').eq('username', username).execute()
+            # Sign in with Supabase Auth
+            response = self.supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
             
-            if not response.data:
-                self.logger.warning(f"Authentication failed: user '{username}' not found")
-                return None
+            if response.user:
+                # Get user data from public.users table
+                user_data = self._get_user_profile(response.user.id)
+                if user_data:
+                    self.logger.info(f"User '{email}' authenticated successfully")
+                    return User.from_dict(user_data)
             
-            user_data = response.data[0]
-            user = User.from_dict(user_data)
-            
-            # Verify password
-            if check_password_hash(user.password_hash, password):
-                # Update last login timestamp
-                user.update_last_login()
-                self._update_last_login(user.id, user.last_login)
-                
-                self.logger.info(f"User '{username}' authenticated successfully")
-                return user
-            else:
-                self.logger.warning(f"Authentication failed: invalid password for user '{username}'")
-                return None
-                
-        except Exception as e:
-            self.logger.error(f"Authentication error for user '{username}': {str(e)}")
+            self.logger.warning(f"Authentication failed for '{email}'")
             return None
-    
-    def create_user(self, username: str, password: str) -> Optional[User]:
-        """
-        Create a new user account
-        
-        Args:
-            username: Desired username
-            password: Plain text password
             
-        Returns:
-            User object if creation successful, None otherwise
-        """
-        try:
-            # Check if username already exists
-            existing = self.supabase.table('users').select('id').eq('username', username).execute()
-            if existing.data:
-                self.logger.warning(f"User creation failed: username '{username}' already exists")
-                return None
-            
-            # Create new user
-            password_hash = generate_password_hash(password)
-            user = User.create_new(username, password_hash)
-            
-            # Insert into database
-            response = self.supabase.table('users').insert(user.to_dict()).execute()
-            
-            if response.data:
-                self.logger.info(f"User '{username}' created successfully")
-                return user
-            else:
-                self.logger.error(f"Failed to create user '{username}': no data returned")
-                return None
-                
         except Exception as e:
-            self.logger.error(f"User creation error for '{username}': {str(e)}")
+            self.logger.error(f"Authentication error for '{email}': {str(e)}")
             return None
     
     def get_user_by_id(self, user_id: str) -> Optional[User]:
         """
-        Retrieve user by ID
+        Get user by ID from public.users table
         
         Args:
-            user_id: User's unique identifier
+            user_id: User's auth ID
             
         Returns:
             User object if found, None otherwise
         """
         try:
-            response = self.supabase.table('users').select('*').eq('id', user_id).execute()
+            user_data = self._get_user_profile(user_id)
+            if user_data:
+                return User.from_dict(user_data)
+            return None
             
-            if response.data:
-                return User.from_dict(response.data[0])
-            else:
-                return None
-                
         except Exception as e:
-            self.logger.error(f"Error retrieving user {user_id}: {str(e)}")
+            self.logger.error(f"Error getting user {user_id}: {str(e)}")
             return None
     
-    def _update_last_login(self, user_id: str, last_login) -> None:
-        """Update user's last login timestamp in database"""
+    def _get_user_profile(self, auth_id: str) -> Optional[dict]:
+        """Get user profile from public.users table"""
         try:
-            self.supabase.table('users').update({
-                'last_login': last_login.isoformat()
-            }).eq('id', user_id).execute()
+            response = self.supabase.table('users').select('*').eq('auth_id', auth_id).execute()
+            
+            if response.data:
+                return response.data[0]
+            return None
+            
         except Exception as e:
-            self.logger.error(f"Failed to update last login for user {user_id}: {str(e)}")
+            self.logger.error(f"Error getting user profile for {auth_id}: {str(e)}")
+            return None
     
     def validate_session(self, user_id: str) -> bool:
         """
         Validate if user session is still valid
         
         Args:
-            user_id: User's unique identifier
+            user_id: User's auth ID
             
         Returns:
-            True if session is valid, False otherwise
+            True if valid, False otherwise
         """
         try:
             user = self.get_user_by_id(user_id)
             return user is not None
         except Exception as e:
-            self.logger.error(f"Session validation error for user {user_id}: {str(e)}")
+            self.logger.error(f"Session validation error for {user_id}: {str(e)}")
             return False

@@ -4,7 +4,7 @@ Flask-Login==0.6.3
 Werkzeug==3.0.1
 
 # Database and authentication
-supabase==2.3.0
+supabase==1.0.3
 psycopg2-binary==2.9.9
 
 # Cloud storage (Wasabi S3-compatible)

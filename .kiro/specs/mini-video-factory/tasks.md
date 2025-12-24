@@ -20,7 +20,7 @@ This implementation plan breaks down the Mini Video Factory into discrete coding
   - Build login HTML template with form validation
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 7.1, 7.2_
 
-- [ ] 3. Create file upload and validation system
+- [x] 3. Create file upload and validation system
   - Implement file upload routes with progress tracking
   - Create file format validation (MP4, AVI, MOV)
   - Add duration and size validation
@@ -28,7 +28,7 @@ This implementation plan breaks down the Mini Video Factory into discrete coding
   - Integrate with Wasabi storage for file persistence
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 5.1_
 
-- [ ] 4. Checkpoint - Ensure authentication and upload work
+- [x] 4. Checkpoint - Ensure authentication and upload work
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Implement video processing pipeline

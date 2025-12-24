@@ -124,7 +124,7 @@ def upload_file():
         
         # Create processing job
         job = ProcessingJob.create_new(current_user.get_id(), file.filename)
-        save_processing_job(job)
+        save_processing_job(job)  # Save initial job to Supabase
         
         # Generate secure filename
         filename = secure_filename(file.filename)
@@ -137,7 +137,7 @@ def upload_file():
         
         # Update job status to validating
         job.update_status(ProcessingStatus.VALIDATING, progress=10)
-        save_processing_job(job)
+        save_processing_job(job)  # Save validation status to Supabase
         
         try:
             # Validate file
@@ -149,7 +149,7 @@ def upload_file():
             
             # Update job status to storing
             job.update_status(ProcessingStatus.STORING, progress=30)
-            save_processing_job(job)
+            save_processing_job(job)  # Save storing status to Supabase
             
             # Try to upload to Wasabi storage if available
             storage_key = f"uploads/{current_user.get_id()}/{unique_filename}"
@@ -157,7 +157,7 @@ def upload_file():
             if storage_manager and storage_manager.is_available:
                 # Upload to Wasabi storage
                 if storage_manager.upload_file(temp_path, storage_key):
-                    job.set_input_paths(temp_path, storage_key)
+                    job.set_input_paths(None, storage_key)  # Only storage key, no local path
                     app.logger.info(f"File uploaded to Wasabi storage: {storage_key}")
                     
                     # Clean up temp file after successful upload
@@ -166,18 +166,18 @@ def upload_file():
                     # Fallback to local storage if Wasabi upload fails
                     local_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
                     os.rename(temp_path, local_path)
-                    job.set_input_paths(local_path, None)
+                    job.set_input_paths(local_path, None)  # Only local path, no storage key
                     app.logger.warning(f"Wasabi upload failed, using local storage: {local_path}")
             else:
                 # Use local storage if Wasabi is not available
                 local_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
                 os.rename(temp_path, local_path)
-                job.set_input_paths(local_path, None)
+                job.set_input_paths(local_path, None)  # Only local path, no storage key
                 app.logger.info(f"Using local storage: {local_path}")
             
             # Update job status to uploaded and ready for processing
             job.update_status(ProcessingStatus.UPLOADED, progress=50)
-            save_processing_job(job)
+            save_processing_job(job)  # This will now save to Supabase
             
             return jsonify({
                 'success': True,
@@ -192,7 +192,7 @@ def upload_file():
                 os.remove(temp_path)
             
             job.update_status(ProcessingStatus.FAILED, error_message=str(e))
-            save_processing_job(job)
+            save_processing_job(job)  # Save failed status to Supabase
             
             return jsonify({'error': str(e)}), 400
             
@@ -234,29 +234,29 @@ def user_jobs():
 def login():
     """User login route"""
     if request.method == 'POST':
-        username = request.form.get('username')
+        email = request.form.get('email') or request.form.get('username')  # Support both
         password = request.form.get('password')
         
-        if not username or not password:
-            flash('Please enter both username and password.', 'error')
+        if not email or not password:
+            flash('Please enter both email and password.', 'error')
             return render_template('login.html')
         
         if auth_manager is None:
             flash('Authentication system unavailable. Please try again later.', 'error')
             return render_template('login.html')
         
-        user = auth_manager.authenticate_user(username, password)
+        user = auth_manager.authenticate_user(email, password)
         if user:
             flask_user = FlaskUser(user)
             login_user(flask_user)
-            app.logger.info(f"User '{username}' logged in successfully")
+            app.logger.info(f"User '{email}' logged in successfully")
             
             # Redirect to next page or dashboard
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('dashboard'))
         else:
-            flash('Invalid username or password.', 'error')
-            app.logger.warning(f"Failed login attempt for username: {username}")
+            flash('Invalid email or password.', 'error')
+            app.logger.warning(f"Failed login attempt for email: {email}")
     
     return render_template('login.html')
 

@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 import uuid
+import os
+import json
+from supabase import create_client, Client
 
 class ProcessingStatus(Enum):
     UPLOADED = "uploaded"
@@ -54,7 +57,7 @@ class ProcessingJob:
         elif status == ProcessingStatus.FAILED:
             self.completed_at = datetime.utcnow()
     
-    def set_input_paths(self, local_path: str, storage_key: str):
+    def set_input_paths(self, local_path: Optional[str], storage_key: Optional[str]):
         self.input_file_path = local_path
         self.input_storage_key = storage_key
     
@@ -87,11 +90,159 @@ class ProcessingJob:
 
 _processing_jobs: Dict[str, ProcessingJob] = {}
 
+# Initialize Supabase client
+def get_supabase_client() -> Optional[Client]:
+    """Get Supabase client for database operations"""
+    try:
+        url = os.environ.get('SUPABASE_URL')
+        key = os.environ.get('SUPABASE_KEY')  # Changed from SUPABASE_ANON_KEY to SUPABASE_KEY
+        
+        if not url or not key:
+            print(f"Missing Supabase config - URL: {bool(url)}, KEY: {bool(key)}")
+            return None
+            
+        client = create_client(url, key)
+        print("Supabase client created successfully")
+        return client
+    except Exception as e:
+        print(f"Error creating Supabase client: {e}")
+        return None
+
 def save_processing_job(job: ProcessingJob):
+    """Save processing job to both memory and Supabase database"""
+    # Save to memory for backward compatibility
     _processing_jobs[job.id] = job
+    print(f"Saved job {job.id} to memory")
+    
+    # Save to Supabase database
+    supabase = get_supabase_client()
+    if supabase:
+        try:
+            job_data = {
+                'id': job.id,
+                'user_id': job.user_id,
+                'original_filename': job.original_filename,
+                'status': job.status.value,
+                'progress': job.progress,
+                'created_at': job.created_at.isoformat() if job.created_at else None,
+                'completed_at': job.completed_at.isoformat() if job.completed_at else None,
+                'error_message': job.error_message,
+                'input_file_path': job.input_file_path,
+                'output_file_path': job.output_file_path,
+                'input_storage_key': job.input_storage_key,
+                'output_storage_key': job.output_storage_key,
+                'video_info': json.dumps(job.video_info) if job.video_info else None
+            }
+            
+            print(f"Attempting to save job {job.id} to Supabase...")
+            print(f"Job data: {job_data}")
+            
+            # Try to update first, if not exists then insert
+            result = supabase.table('processing_jobs').select('id').eq('id', job.id).execute()
+            
+            if result.data:
+                # Update existing job
+                print(f"Updating existing job {job.id}")
+                update_result = supabase.table('processing_jobs').update(job_data).eq('id', job.id).execute()
+                print(f"Update result: {update_result}")
+            else:
+                # Insert new job
+                print(f"Inserting new job {job.id}")
+                insert_result = supabase.table('processing_jobs').insert(job_data).execute()
+                print(f"Insert result: {insert_result}")
+                
+            print(f"Successfully saved job {job.id} to Supabase")
+                    
+        except Exception as e:
+            print(f"Error saving job to Supabase: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print("Supabase client not available")
 
 def get_processing_job(job_id: str) -> Optional[ProcessingJob]:
-    return _processing_jobs.get(job_id)
+    """Get processing job from memory first, then from Supabase if not found"""
+    # Try memory first
+    if job_id in _processing_jobs:
+        return _processing_jobs[job_id]
+    
+    # Try Supabase database
+    supabase = get_supabase_client()
+    if supabase:
+        try:
+            result = supabase.table('processing_jobs').select('*').eq('id', job_id).execute()
+            
+            if result.data:
+                job_data = result.data[0]
+                job = ProcessingJob(
+                    id=job_data['id'],
+                    user_id=job_data['user_id'],
+                    original_filename=job_data['original_filename'],
+                    status=ProcessingStatus(job_data['status']),
+                    progress=job_data['progress'],
+                    created_at=datetime.fromisoformat(job_data['created_at'].replace('Z', '+00:00')) if job_data['created_at'] else None,
+                    completed_at=datetime.fromisoformat(job_data['completed_at'].replace('Z', '+00:00')) if job_data['completed_at'] else None,
+                    error_message=job_data['error_message'],
+                    input_file_path=job_data.get('input_file_path'),
+                    output_file_path=job_data.get('output_file_path'),
+                    input_storage_key=job_data['input_storage_key'],
+                    output_storage_key=job_data['output_storage_key'],
+                    video_info=json.loads(job_data['video_info']) if job_data.get('video_info') else None
+                )
+                
+                # Cache in memory
+                _processing_jobs[job_id] = job
+                return job
+                
+        except Exception as e:
+            print(f"Error loading job from Supabase: {e}")
+    
+    return None
 
 def get_user_jobs(user_id: str) -> List[ProcessingJob]:
-    return [job for job in _processing_jobs.values() if job.user_id == user_id]
+    """Get all jobs for a user from Supabase database"""
+    jobs = []
+    
+    # Get from memory first
+    memory_jobs = [job for job in _processing_jobs.values() if job.user_id == user_id]
+    jobs.extend(memory_jobs)
+    
+    # Get from Supabase database
+    supabase = get_supabase_client()
+    if supabase:
+        try:
+            result = supabase.table('processing_jobs').select('*').eq('user_id', user_id).order('created_at', desc=True).execute()
+            
+            for job_data in result.data:
+                job_id = job_data['id']
+                
+                # Skip if already in memory
+                if job_id in _processing_jobs:
+                    continue
+                    
+                job = ProcessingJob(
+                    id=job_data['id'],
+                    user_id=job_data['user_id'],
+                    original_filename=job_data['original_filename'],
+                    status=ProcessingStatus(job_data['status']),
+                    progress=job_data['progress'],
+                    created_at=datetime.fromisoformat(job_data['created_at'].replace('Z', '+00:00')) if job_data['created_at'] else None,
+                    completed_at=datetime.fromisoformat(job_data['completed_at'].replace('Z', '+00:00')) if job_data['completed_at'] else None,
+                    error_message=job_data['error_message'],
+                    input_file_path=job_data.get('input_file_path'),
+                    output_file_path=job_data.get('output_file_path'),
+                    input_storage_key=job_data['input_storage_key'],
+                    output_storage_key=job_data['output_storage_key'],
+                    video_info=json.loads(job_data['video_info']) if job_data.get('video_info') else None
+                )
+                
+                jobs.append(job)
+                # Cache in memory
+                _processing_jobs[job_id] = job
+                
+        except Exception as e:
+            print(f"Error loading user jobs from Supabase: {e}")
+    
+    # Sort by created_at descending
+    jobs.sort(key=lambda x: x.created_at or datetime.min, reverse=True)
+    return jobs

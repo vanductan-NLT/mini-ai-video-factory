@@ -8,6 +8,7 @@ import os
 import magic
 import subprocess
 import logging
+import json
 from typing import Tuple, Optional, Dict, Any
 from werkzeug.datastructures import FileStorage
 
@@ -138,7 +139,6 @@ def get_video_duration(file_path: str) -> float:
         if result.returncode != 0:
             raise ValidationError(f"FFprobe failed: {result.stderr}")
         
-        import json
         probe_data = json.loads(result.stdout)
         
         duration = float(probe_data['format']['duration'])
@@ -210,7 +210,6 @@ def get_video_info(file_path: str) -> Dict[str, Any]:
         if result.returncode != 0:
             raise ValidationError(f"FFprobe failed: {result.stderr}")
         
-        import json
         probe_data = json.loads(result.stdout)
         
         # Extract video stream information
