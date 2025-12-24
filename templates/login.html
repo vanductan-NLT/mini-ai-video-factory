@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Mini Video Factory{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="logo">
+        <h1>🎬 Mini Video Factory</h1>
+        <p style="color: #666; margin-top: 0.5rem;">Automated Video Processing</p>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <form method="POST" action="{{ url_for('login') }}" novalidate>
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input 
+                type="text" 
+                id="username" 
+                name="username" 
+                required 
+                autocomplete="username"
+                value="{{ request.form.username if request.form.username }}"
+            >
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input 
+                type="password" 
+                id="password" 
+                name="password" 
+                required 
+                autocomplete="current-password"
+            >
+        </div>
+        
+        <button type="submit" class="btn">Sign In</button>
+    </form>
+    
+    <div style="text-align: center; margin-top: 1rem; color: #666; font-size: 0.9rem;">
+        <p>Enter your credentials to access the video processing system</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Focus on username field when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        const usernameField = document.getElementById('username');
+        if (usernameField && !usernameField.value) {
+            usernameField.focus();
+        }
+    });
+    
+    // Enhanced form validation
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        
+        function validateField(field, minLength = 1) {
+            const value = field.value.trim();
+            if (value.length < minLength) {
+                field.style.borderColor = '#dc3545';
+                return false;
+            } else {
+                field.style.borderColor = '#28a745';
+                return true;
+            }
+        }
+        
+        // Real-time validation
+        usernameInput.addEventListener('blur', function() {
+            validateField(this, 3);
+        });
+        
+        passwordInput.addEventListener('blur', function() {
+            validateField(this, 1);
+        });
+        
+        // Form submission validation
+        form.addEventListener('submit', function(e) {
+            const isUsernameValid = validateField(usernameInput, 3);
+            const isPasswordValid = validateField(passwordInput, 1);
+            
+            if (!isUsernameValid || !isPasswordValid) {
+                e.preventDefault();
+                
+                let errorMessage = 'Please correct the following errors:\n';
+                if (!isUsernameValid) {
+                    errorMessage += '- Username must be at least 3 characters\n';
+                }
+                if (!isPasswordValid) {
+                    errorMessage += '- Password is required\n';
+                }
+                
+                alert(errorMessage);
+            }
+        });
+    });
+</script>
+{% endblock %}

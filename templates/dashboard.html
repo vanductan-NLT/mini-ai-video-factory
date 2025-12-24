@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Mini Video Factory{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="header">
+        <div>
+            <h1>🎬 Mini Video Factory</h1>
+            <p style="color: #666;">Welcome back, {{ user.username }}!</p>
+        </div>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <div style="text-align: center; padding: 3rem 0;">
+        <h2 style="color: #333; margin-bottom: 1rem;">Video Processing Dashboard</h2>
+        <p style="color: #666; font-size: 1.1rem;">
+            Upload and process your videos with automated editing and subtitles
+        </p>
+        
+        <div style="margin-top: 2rem; padding: 2rem; background: #f8f9fa; border-radius: 8px;">
+            <p style="color: #666;">
+                🚧 Video upload and processing features will be available in the next implementation phase.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
