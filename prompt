@@ -1,0 +1,49 @@
+T muốn build một mini project để học và thực hành các đóng gói này. 
+
+Trong project chỉ đơn giản là: 
+
+- input: video được user upload, tầm 3-5p.
+
+- output: video được cắt f1, và được thêm phụ đề cơ bản. 
+
+- tech stack: auto-editor for auto cut, whisper selfhost để transcribe và thêm phụ đề vào video.
+supabase làm database
+- Yêu cầu: 
+
++ Có giao diện để đăng nhập tài khoản được cấp, upload, có thanh tiến trình và có màn hình để preview video, và tải video về dưới dạng mp4. 
+
++ được đóng gói hoàn chỉnh, hoạt động tương tự như sản phẩm t sẽ giao cho khách hàng v đó.
+
++ Dùng trước các hạ tầng miễn phí, free trial để làm trước
+
+
+
+KIẾN TRÚC MINI PROJECT:
+- frontend + backend chugn một source. Keep everything simple nhất có thể. 
+- storage: dùng bản free trên wasabi storage. 
+- DÙng whisper openai self host để transribe và thêm phụ đề cho video/ 
+- Dùng auto-editor để tự động cắt đoạn thừa. 
+- viết docker để đóng gói dự án. 
+
+Kết quả cuối cùng: trở thành một gói như n8n self host, nhưng quy mô nhỏ hơn: 
+- Phía dev: 
++ tự thuệ server, VPS để cho gói lên đó để nó hoạt động 24/7.
++ trỏ một domain free vào để đưa cho nhiều người xài. 
++ Gắn các env var nếu có. 
++ Tạo và quản lý các mật khẩu cho từng domain. 
+
+- Phía user: 
++ Nhận tài khoản và domain để dùng. 
++ Upload video và xài bình thường. 
+
+Cấu trúc dự án cơ bản, kim everything simple, chỉ làm prototype thôi:
+mini-video-factory/
+├── data/               # (BẮT BUỘC) Nơi chứa video thô và kết quả (Map Volume)
+├── static/             # Nơi chứa file CSS, JS, hình ảnh
+├── templates/          # Nơi chứa file index.html (Giao diện)
+├── main         # "Đầu não": Chứa API, Logic AI và lệnh trả về giao diện
+├── requirements.txt    # Danh sách thư viện Python cần dùng
+└── Dockerfile          # "Bản vẽ" để đóng gói toàn bộ thư mục này
+
+Lưu ý: 
+- Giữ sản phẩm đơn giản, MVP, chỉ cần xài được hai chức năng chính, chủ yếu là phải đóng gói thành công và cho user xài được. 

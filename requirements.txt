@@ -1,0 +1,32 @@
+# Flask web framework and extensions
+Flask==3.0.0
+Flask-Login==0.6.3
+Werkzeug==3.0.1
+
+# Database and authentication
+supabase==2.3.0
+psycopg2-binary==2.9.9
+
+# Cloud storage (Wasabi S3-compatible)
+boto3==1.34.0
+botocore==1.34.0
+
+# Video processing dependencies
+openai-whisper==20231117
+auto-editor==23.47.0
+
+# File handling and validation
+python-magic==0.4.27
+Pillow==10.1.0
+
+# HTTP requests and utilities
+requests==2.31.0
+python-dotenv==1.0.0
+
+# Development and testing
+pytest==7.4.3
+pytest-flask==1.3.0
+hypothesis==6.92.1
+
+# Production server
+gunicorn==21.2.0
