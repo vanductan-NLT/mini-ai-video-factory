@@ -77,5 +77,19 @@ class WasabiConfig:
         except ValueError:
             return False
 
-# Global instance
-wasabi_config = WasabiConfig()
+# Global instance - handle configuration errors gracefully
+try:
+    wasabi_config = WasabiConfig()
+except ValueError as e:
+    # Create a dummy config that reports as not configured
+    class DummyWasabiConfig:
+        def __init__(self):
+            self.is_configured = False
+        
+        def get_boto3_config(self):
+            return {}
+        
+        def get_bucket_name(self):
+            return ""
+    
+    wasabi_config = DummyWasabiConfig()
