@@ -426,7 +426,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (job.status === 'uploaded') {
                 actionButton = `<button onclick="startProcessing('${job.id}')" class="btn btn-primary" style="margin-left: 1rem;">Start Processing</button>`;
             } else if (job.status === 'completed') {
-                actionButton = `<a href="/download/${job.id}" class="btn btn-success" style="margin-left: 1rem;">Download</a>`;
+                actionButton = `
+                    <a href="/preview/${job.id}" class="btn btn-primary" style="margin-left: 0.5rem;">👁️ Preview</a>
+                    <a href="/download/${job.id}" class="btn btn-success" style="margin-left: 0.5rem;">📥 Download</a>
+                `;
             }
             
             return `
@@ -437,6 +440,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             Created: ${createdAt}
                             ${job.video_info ? ` | Duration: ${Math.round(job.video_info.duration)}s` : ''}
                             ${job.progress > 0 ? ` | Progress: ${job.progress}%` : ''}
+                            ${job.status === 'completed' && job.processed_video_info ? ` | Processed: ${Math.round(job.processed_video_info.duration)}s` : ''}
                         </div>
                         ${job.error_message ? `<div style="color: #dc3545; font-size: 0.8rem; margin-top: 0.25rem;">${job.error_message}</div>` : ''}
                     </div>

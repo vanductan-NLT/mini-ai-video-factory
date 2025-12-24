@@ -7,6 +7,7 @@ A self-hosted web application for automated video processing with auto-editing a
 import os
 import logging
 import uuid
+import re
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -278,10 +279,105 @@ def process_video(job_id):
         app.logger.error(f"Processing error for job {job_id}: {str(e)}")
         return jsonify({'error': 'Processing failed. Please try again.'}), 500
 
+@app.route('/preview/<job_id>')
+@login_required
+def preview_video(job_id):
+    """Preview processed video with embedded subtitles"""
+    try:
+        job = get_processing_job(job_id)
+        
+        if not job or job.user_id != current_user.get_id():
+            return jsonify({'error': 'Job not found'}), 404
+        
+        if job.status != ProcessingStatus.COMPLETED:
+            return jsonify({'error': 'Video processing not completed'}), 400
+        
+        return render_template('preview.html', job=job, user=current_user)
+            
+    except Exception as e:
+        app.logger.error(f"Preview error for job {job_id}: {str(e)}")
+        return jsonify({'error': 'Preview failed. Please try again.'}), 500
+
+@app.route('/video_stream/<job_id>')
+@login_required
+def stream_video(job_id):
+    """Stream processed video for preview"""
+    try:
+        job = get_processing_job(job_id)
+        
+        if not job or job.user_id != current_user.get_id():
+            return jsonify({'error': 'Job not found'}), 404
+        
+        if job.status != ProcessingStatus.COMPLETED:
+            return jsonify({'error': 'Video processing not completed'}), 400
+        
+        # Try to serve from local storage first
+        if job.output_file_path and os.path.exists(job.output_file_path):
+            from flask import send_file, Response
+            import mimetypes
+            
+            # Get file size for range requests
+            file_size = os.path.getsize(job.output_file_path)
+            
+            # Handle range requests for video streaming
+            range_header = request.headers.get('Range', None)
+            if range_header:
+                byte_start = 0
+                byte_end = file_size - 1
+                
+                if range_header:
+                    match = re.search(r'bytes=(\d+)-(\d*)', range_header)
+                    if match:
+                        byte_start = int(match.group(1))
+                        if match.group(2):
+                            byte_end = int(match.group(2))
+                
+                # Ensure byte_end doesn't exceed file size
+                byte_end = min(byte_end, file_size - 1)
+                
+                # Read the requested chunk
+                with open(job.output_file_path, 'rb') as f:
+                    f.seek(byte_start)
+                    data = f.read(byte_end - byte_start + 1)
+                
+                response = Response(
+                    data,
+                    206,  # Partial Content
+                    headers={
+                        'Content-Range': f'bytes {byte_start}-{byte_end}/{file_size}',
+                        'Accept-Ranges': 'bytes',
+                        'Content-Length': str(len(data)),
+                        'Content-Type': 'video/mp4',
+                    }
+                )
+                return response
+            else:
+                # Serve full file
+                return send_file(
+                    job.output_file_path,
+                    mimetype='video/mp4',
+                    as_attachment=False
+                )
+        
+        # Try to generate streaming URL from Wasabi storage
+        elif job.output_storage_key and storage_manager and storage_manager.is_available:
+            stream_url = storage_manager.generate_download_url(job.output_storage_key, expiration=7200)  # 2 hours
+            if stream_url:
+                return redirect(stream_url)
+            else:
+                return jsonify({'error': 'Failed to generate streaming URL'}), 500
+        
+        else:
+            return jsonify({'error': 'Processed video not found'}), 404
+            
+    except Exception as e:
+        app.logger.error(f"Video streaming error for job {job_id}: {str(e)}")
+        return jsonify({'error': 'Video streaming failed. Please try again.'}), 500
+
 @app.route('/download/<job_id>')
 @login_required
 def download_video(job_id):
-    """Download processed video"""
+    """Download processed video with progress tracking"""
     try:
         job = get_processing_job(job_id)
         
@@ -314,6 +410,48 @@ def download_video(job_id):
     except Exception as e:
         app.logger.error(f"Download error for job {job_id}: {str(e)}")
         return jsonify({'error': 'Download failed. Please try again.'}), 500
+
+@app.route('/download_progress/<job_id>')
+@login_required
+def download_progress(job_id):
+    """Track download progress for a job"""
+    try:
+        job = get_processing_job(job_id)
+        
+        if not job or job.user_id != current_user.get_id():
+            return jsonify({'error': 'Job not found'}), 404
+        
+        if job.status != ProcessingStatus.COMPLETED:
+            return jsonify({'error': 'Video processing not completed'}), 400
+        
+        # Get file metadata for progress tracking
+        file_info = {}
+        if job.output_storage_key and storage_manager and storage_manager.is_available:
+            storage_info = storage_manager.get_file_info(job.output_storage_key)
+            if storage_info:
+                file_info = {
+                    'size': storage_info['size'],
+                    'last_modified': storage_info['last_modified'].isoformat() if storage_info['last_modified'] else None,
+                    'content_type': storage_info['content_type']
+                }
+        elif job.output_file_path and os.path.exists(job.output_file_path):
+            stat = os.stat(job.output_file_path)
+            file_info = {
+                'size': stat.st_size,
+                'last_modified': datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                'content_type': 'video/mp4'
+            }
+        
+        return jsonify({
+            'job_id': job.id,
+            'original_filename': job.original_filename,
+            'file_info': file_info,
+            'download_ready': True
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Download progress error for job {job_id}: {str(e)}")
+        return jsonify({'error': 'Download progress check failed'}), 500
 
 @app.route('/processing_status/<job_id>')
 @login_required

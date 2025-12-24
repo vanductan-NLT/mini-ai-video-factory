@@ -263,6 +263,53 @@ class VideoProcessor:
             logger.error(f"Subtitle embedding error: {e}")
             raise VideoProcessingError(f"Subtitle embedding failed: {e}")
     
+    def _get_video_info(self, video_path: str) -> Dict[str, Any]:
+        """Get video file information using FFprobe"""
+        try:
+            cmd = [
+                'ffprobe', '-v', 'quiet', '-print_format', 'json',
+                '-show_format', '-show_streams', video_path
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                info = json.loads(result.stdout)
+                
+                # Extract relevant information
+                format_info = info.get('format', {})
+                video_stream = None
+                
+                # Find video stream
+                for stream in info.get('streams', []):
+                    if stream.get('codec_type') == 'video':
+                        video_stream = stream
+                        break
+                
+                video_info = {
+                    'duration': float(format_info.get('duration', 0)),
+                    'size': int(format_info.get('size', 0)),
+                    'format': format_info.get('format_name', '').split(',')[0],
+                    'bitrate': int(format_info.get('bit_rate', 0))
+                }
+                
+                if video_stream:
+                    video_info.update({
+                        'width': int(video_stream.get('width', 0)),
+                        'height': int(video_stream.get('height', 0)),
+                        'fps': eval(video_stream.get('r_frame_rate', '0/1')),
+                        'codec': video_stream.get('codec_name', '')
+                    })
+                
+                return video_info
+            else:
+                logger.warning(f"FFprobe failed for {video_path}: {result.stderr}")
+                return {}
+                
+        except Exception as e:
+            logger.warning(f"Failed to get video info for {video_path}: {e}")
+            return {}
+    
     def _upload_output_file(self, job: ProcessingJob, local_output_path: str) -> str:
         """Upload processed video to storage"""
         if self.storage_manager and self.storage_manager.is_available:
@@ -340,7 +387,14 @@ class VideoProcessor:
             final_output_path = os.path.join(temp_dir, f"final_{job.original_filename}")
             self._embed_subtitles(edited_path, srt_path, final_output_path, lambda msg: update_progress(msg, None))
             
-            # Step 6: Upload output file
+            # Step 6: Collect processed video metadata
+            update_progress("Collecting video metadata...", 85)
+            processed_video_info = self._get_video_info(final_output_path)
+            if processed_video_info:
+                job.set_processed_video_info(processed_video_info)
+                logger.info(f"Collected processed video metadata: {processed_video_info}")
+            
+            # Step 7: Upload output file
             update_progress("Uploading processed video...", 90)
             
             output_location = self._upload_output_file(job, final_output_path)

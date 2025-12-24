@@ -32,6 +32,7 @@ class ProcessingJob:
     input_storage_key: Optional[str] = None
     output_storage_key: Optional[str] = None
     video_info: Optional[Dict[str, Any]] = None
+    processed_video_info: Optional[Dict[str, Any]] = None
     
     @classmethod
     def create_new(cls, user_id: str, original_filename: str):
@@ -61,8 +62,56 @@ class ProcessingJob:
         self.input_file_path = local_path
         self.input_storage_key = storage_key
     
+    def set_output_paths(self, local_path: Optional[str], storage_key: Optional[str]):
+        self.output_file_path = local_path
+        self.output_storage_key = storage_key
+    
     def set_video_info(self, video_info: Dict[str, Any]):
         self.video_info = video_info
+    
+    def set_processed_video_info(self, processed_info: Dict[str, Any]):
+        """Set metadata about the processed video"""
+        self.processed_video_info = processed_info
+    
+    def get_file_size_mb(self) -> Optional[float]:
+        """Get original file size in MB"""
+        if self.video_info and 'size' in self.video_info:
+            return self.video_info['size'] / (1024 * 1024)
+        return None
+    
+    def get_processed_file_size_mb(self) -> Optional[float]:
+        """Get processed file size in MB"""
+        if self.processed_video_info and 'size' in self.processed_video_info:
+            return self.processed_video_info['size'] / (1024 * 1024)
+        return None
+    
+    def get_duration_seconds(self) -> Optional[float]:
+        """Get original video duration in seconds"""
+        if self.video_info and 'duration' in self.video_info:
+            return self.video_info['duration']
+        return None
+    
+    def get_processed_duration_seconds(self) -> Optional[float]:
+        """Get processed video duration in seconds"""
+        if self.processed_video_info and 'duration' in self.processed_video_info:
+            return self.processed_video_info['duration']
+        return None
+    
+    def get_compression_ratio(self) -> Optional[float]:
+        """Get compression ratio (processed size / original size)"""
+        original_size = self.get_file_size_mb()
+        processed_size = self.get_processed_file_size_mb()
+        if original_size and processed_size and original_size > 0:
+            return processed_size / original_size
+        return None
+    
+    def get_time_saved_seconds(self) -> Optional[float]:
+        """Get time saved by auto-editing in seconds"""
+        original_duration = self.get_duration_seconds()
+        processed_duration = self.get_processed_duration_seconds()
+        if original_duration and processed_duration:
+            return max(0, original_duration - processed_duration)
+        return None
     
     def is_completed(self) -> bool:
         return self.status in [ProcessingStatus.COMPLETED, ProcessingStatus.FAILED]
@@ -131,7 +180,8 @@ def save_processing_job(job: ProcessingJob):
                 'output_file_path': job.output_file_path,
                 'input_storage_key': job.input_storage_key,
                 'output_storage_key': job.output_storage_key,
-                'video_info': json.dumps(job.video_info) if job.video_info else None
+                'video_info': json.dumps(job.video_info) if job.video_info else None,
+                'processed_video_info': json.dumps(job.processed_video_info) if job.processed_video_info else None
             }
             
             print(f"Attempting to save job {job.id} to Supabase...")
@@ -187,7 +237,8 @@ def get_processing_job(job_id: str) -> Optional[ProcessingJob]:
                     output_file_path=job_data.get('output_file_path'),
                     input_storage_key=job_data['input_storage_key'],
                     output_storage_key=job_data['output_storage_key'],
-                    video_info=json.loads(job_data['video_info']) if job_data.get('video_info') else None
+                    video_info=json.loads(job_data['video_info']) if job_data.get('video_info') else None,
+                    processed_video_info=json.loads(job_data['processed_video_info']) if job_data.get('processed_video_info') else None
                 )
                 
                 # Cache in memory
@@ -233,7 +284,8 @@ def get_user_jobs(user_id: str) -> List[ProcessingJob]:
                     output_file_path=job_data.get('output_file_path'),
                     input_storage_key=job_data['input_storage_key'],
                     output_storage_key=job_data['output_storage_key'],
-                    video_info=json.loads(job_data['video_info']) if job_data.get('video_info') else None
+                    video_info=json.loads(job_data['video_info']) if job_data.get('video_info') else None,
+                    processed_video_info=json.loads(job_data['processed_video_info']) if job_data.get('processed_video_info') else None
                 )
                 
                 jobs.append(job)
