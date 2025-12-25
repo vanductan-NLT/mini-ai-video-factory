@@ -11,6 +11,7 @@ services:
     
     environment:
       - FLASK_ENV=${FLASK_ENV:-development}
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-password}@postgres:5432/mini_video_factory
     
     ports:
       - "${HOST_PORT:-8080}:5000"
@@ -18,6 +19,9 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+    
+    depends_on:
+      - postgres
     
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
@@ -33,6 +37,27 @@ services:
           memory: 2G
         reservations:
           memory: 512M
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: mini-video-factory-db
+    restart: unless-stopped
+    
+    environment:
+      POSTGRES_DB: mini_video_factory
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+    
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+    
+    ports:
+      - "5432:5432"
+    
+    profiles:
+      - with-db
 
   # Optional: Nginx for production
   nginx:
@@ -64,3 +89,6 @@ services:
       - WATCHTOWER_POLL_INTERVAL=3600
     profiles:
       - auto-update
+
+volumes:
+  postgres_data:
