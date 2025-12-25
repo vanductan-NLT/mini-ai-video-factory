@@ -1,0 +1,30 @@
+{
+  "name": "mini-video-factory",
+  "description": "Self-hosted video processing with auto-editing and subtitles",
+  "type": "docker-compose",
+  "repository": "https://github.com/your-username/mini-video-factory",
+  "branch": "main",
+  "buildCommand": "docker-compose build",
+  "startCommand": "docker-compose up -d",
+  "port": 8080,
+  "healthCheck": "/health",
+  "environment": {
+    "SECRET_KEY": "",
+    "SUPABASE_URL": "",
+    "SUPABASE_KEY": "",
+    "WASABI_ENDPOINT": "",
+    "WASABI_BUCKET": "",
+    "WASABI_ACCESS_KEY_ID": "",
+    "WASABI_SECRET_ACCESS_KEY": "",
+    "HOST_PORT": "8080",
+    "FLASK_ENV": "production",
+    "MAX_FILE_SIZE": "104857600",
+    "MAX_DURATION": "600"
+  },
+  "volumes": [
+    "./data:/app/data",
+    "./logs:/app/logs"
+  ],
+  "domains": [],
+  "ssl": true
+}

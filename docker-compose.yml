@@ -9,6 +9,9 @@ services:
     env_file:
       - .env
     
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-development}
+    
     ports:
       - "${HOST_PORT:-8080}:5000"
     
@@ -22,6 +25,14 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    
+    # Production resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
 
   # Optional: Nginx for production
   nginx:
@@ -40,3 +51,16 @@ services:
     
     profiles:
       - production
+
+  # Auto-update service (optional)
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=3600
+    profiles:
+      - auto-update
