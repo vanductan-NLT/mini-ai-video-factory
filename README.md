@@ -30,6 +30,30 @@ mini-video-factory/
 
 ## Quick Start
 
+### Docker Deployment (Recommended)
+
+1. **Clone and setup**:
+   ```bash
+   git clone <repository-url>
+   cd mini-video-factory
+   ```
+
+2. **Configure environment**:
+   ```bash
+   cp .env.docker .env
+   # Edit .env with your Supabase and Wasabi credentials
+   ```
+
+3. **Deploy with Docker**:
+   ```bash
+   ./docker/deploy.sh
+   ```
+
+4. **Access application**:
+   Open http://localhost:8080 in your browser
+
+### Manual Installation
+
 1. **Clone and setup**:
    ```bash
    git clone <repository-url>
@@ -51,6 +75,42 @@ mini-video-factory/
    ```bash
    python app.py
    ```
+
+## Docker Deployment
+
+Mini Video Factory is designed for easy deployment using Docker. The Docker configuration includes:
+
+- **Multi-stage build** for optimized image size
+- **Health checks** for monitoring
+- **Volume mapping** for data persistence
+- **Environment configuration** for easy setup
+- **Production mode** with Nginx reverse proxy
+
+### Deployment Commands
+
+```bash
+# Development deployment
+./docker/deploy.sh
+
+# Production deployment with Nginx
+./docker/deploy.sh production
+
+# Stop services
+./docker/deploy.sh stop
+
+# View logs
+./docker/deploy.sh logs
+
+# Update application
+./docker/deploy.sh update
+```
+
+### Resource Requirements
+
+- **Minimum**: 1 CPU core, 1GB RAM, 10GB storage
+- **Recommended**: 2+ CPU cores, 4GB+ RAM, 50GB+ storage
+
+See `docker/README.md` for detailed Docker deployment documentation.
 
 ## Environment Variables
 
