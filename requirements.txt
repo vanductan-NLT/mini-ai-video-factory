@@ -4,20 +4,20 @@ Flask-Login==0.6.3
 Werkzeug==3.0.1
 
 # Database and authentication
-supabase==1.0.3
+supabase==2.3.4
 psycopg2-binary==2.9.9
 
 # Cloud storage (Wasabi S3-compatible)
 boto3==1.34.0
 botocore==1.34.0
 
-# Video processing dependencies
+# Video processing dependencies - pin specific working versions
 openai-whisper==20231117
 auto-editor==23.47.0
 
 # File handling and validation
 python-magic==0.4.27
-Pillow==10.1.0
+Pillow==10.2.0
 
 # HTTP requests and utilities
 requests==2.31.0
