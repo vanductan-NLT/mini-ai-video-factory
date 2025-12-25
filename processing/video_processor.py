@@ -117,12 +117,6 @@ class VideoProcessor:
         except Exception as e:
             logger.error(f"Auto-editor placeholder failed: {e}")
             return False
-                    else:
-                        raise VideoProcessingError("Auto-editor completed but output file not found")
-                else:
-                    logger.error(f"Auto-editor failed with return code {result.returncode}")
-                    logger.error(f"Stdout: {result.stdout}")
-                    logger.error(f"Stderr: {result.stderr}")
                     raise VideoProcessingError(f"Auto-editor failed: {result.stderr}")
                     
             except subprocess.TimeoutExpired:

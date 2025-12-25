@@ -32,8 +32,9 @@ COPY . .
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
-# Create app user
+# Create app user and directories
 RUN useradd --create-home --shell /bin/bash app && \
+    mkdir -p /app/data/uploads /app/data/temp /app/data/output /app/logs && \
     chown -R app:app /app
 USER app
 
