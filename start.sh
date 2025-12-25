@@ -7,10 +7,19 @@ echo "Starting Mini Video Factory..."
 mkdir -p /app/data/uploads /app/data/temp /app/data/output /app/logs
 
 # Check required environment variables
-if [ -z "$SECRET_KEY" ] || [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
-    echo "ERROR: Missing required environment variables (SECRET_KEY, SUPABASE_URL, SUPABASE_KEY)"
+if [ -z "$SECRET_KEY" ]; then
+    echo "ERROR: Missing required environment variable: SECRET_KEY"
     exit 1
 fi
+
+if [ -z "$DATABASE_URL" ]; then
+    echo "ERROR: Missing required environment variable: DATABASE_URL"
+    exit 1
+fi
+
+# Run database migrations
+echo "Running database migrations..."
+python3 migrate.py
 
 # Start application
 if [ "${FLASK_DEBUG:-False}" = "True" ]; then

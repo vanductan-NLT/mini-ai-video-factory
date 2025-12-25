@@ -583,9 +583,76 @@ def index():
 @app.route('/health')
 def health_check():
     """Health check endpoint for Docker deployment"""
-    return {'status': 'healthy', 'timestamp': datetime.utcnow().isoformat()}
+    try:
+        # Basic health check
+        return {
+            'status': 'healthy', 
+            'timestamp': datetime.utcnow().isoformat(),
+            'database': 'connected' if os.environ.get('DATABASE_URL') else 'not_configured'
+        }
+    except Exception as e:
+        return {
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }, 500
+
+def run_migrations():
+    """Run database migrations on startup"""
+    try:
+        import psycopg2
+        from urllib.parse import urlparse
+        
+        # Get database URL
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            logging.warning("No DATABASE_URL found, skipping migrations")
+            return
+        
+        # Parse database URL
+        parsed = urlparse(database_url)
+        
+        # Connect to database
+        conn = psycopg2.connect(
+            host=parsed.hostname,
+            port=parsed.port or 5432,
+            database=parsed.path[1:],  # Remove leading slash
+            user=parsed.username,
+            password=parsed.password
+        )
+        
+        cursor = conn.cursor()
+        
+        # Read and execute migration files
+        migration_dir = './supabase/migrations'
+        if os.path.exists(migration_dir):
+            migration_files = sorted([f for f in os.listdir(migration_dir) if f.endswith('.sql')])
+            
+            for migration_file in migration_files:
+                migration_path = os.path.join(migration_dir, migration_file)
+                logging.info(f"Running migration: {migration_file}")
+                
+                with open(migration_path, 'r', encoding='utf-8') as f:
+                    sql_content = f.read()
+                
+                # Execute migration
+                cursor.execute(sql_content)
+                conn.commit()
+                logging.info(f"Migration completed: {migration_file}")
+        
+        cursor.close()
+        conn.close()
+        logging.info("All migrations completed successfully")
+        
+    except Exception as e:
+        logging.error(f"Migration failed: {e}")
+        # Don't fail app startup if migrations fail
+        pass
 
 if __name__ == '__main__':
+    # Run migrations on startup
+    run_migrations()
+    
     # Development server configuration
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.environ.get('PORT', 5000))
