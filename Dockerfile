@@ -28,14 +28,19 @@ RUN pip install --no-cache-dir --timeout=300 -r requirements.txt
 # Copy application code
 COPY . .
 
-# Copy startup script
+# Copy startup script and make it executable
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
-# Create app user and directories
+# Create directories as root first, then change ownership
+RUN mkdir -p /app/data/uploads /app/data/temp /app/data/output /app/logs && \
+    chmod -R 755 /app/data /app/logs
+
+# Create app user and change ownership
 RUN useradd --create-home --shell /bin/bash app && \
-    mkdir -p /app/data/uploads /app/data/temp /app/data/output /app/logs && \
     chown -R app:app /app
+
+# Switch to app user
 USER app
 
 # Expose port

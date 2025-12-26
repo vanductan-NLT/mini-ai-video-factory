@@ -10,16 +10,17 @@
   "healthCheck": "/health",
   "environment": {
     "SECRET_KEY": "",
-    "SUPABASE_URL": "",
-    "SUPABASE_KEY": "",
+    "DATABASE_URL": "",
     "WASABI_ENDPOINT": "",
+    "WASABI_REGION": "",
     "WASABI_BUCKET": "",
     "WASABI_ACCESS_KEY_ID": "",
     "WASABI_SECRET_ACCESS_KEY": "",
-    "HOST_PORT": "8080",
     "FLASK_ENV": "production",
     "MAX_FILE_SIZE": "104857600",
-    "MAX_DURATION": "600"
+    "MAX_DURATION": "600",
+    "WHISPER_MODEL": "base",
+    "LOG_LEVEL": "INFO"
   },
   "volumes": [
     "./data:/app/data",

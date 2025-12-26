@@ -7,17 +7,17 @@ services:
     restart: unless-stopped
     
     env_file:
-      - .env
+      - .env.production
     
     environment:
-      - FLASK_ENV=${FLASK_ENV:-production}
+      - FLASK_ENV=production
     
     ports:
       - "5000"
     
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - ./data:/app/data:rw
+      - ./logs:/app/logs:rw
     
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]

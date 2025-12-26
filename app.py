@@ -74,10 +74,17 @@ def load_user(user_id):
         return FlaskUser(user)
     return None
 
-# Ensure data directories exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['TEMP_FOLDER'], exist_ok=True)
-os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
+# Ensure data directories exist with error handling
+try:
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['TEMP_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
+    app.logger.info("Data directories created successfully")
+except PermissionError as e:
+    app.logger.error(f"Permission denied creating directories: {e}")
+    app.logger.error("Please check Docker container permissions")
+except Exception as e:
+    app.logger.error(f"Failed to create directories: {e}")
 
 # Setup logging
 setup_logging(app)
@@ -609,49 +616,58 @@ def index():
 def run_migrations():
     """Run database migrations on startup"""
     try:
-        import psycopg2
-        from urllib.parse import urlparse
-        
-        # Get database URL
+        # Check if we're using Supabase or local PostgreSQL
         database_url = os.environ.get('DATABASE_URL')
-        if not database_url:
-            logging.warning("No DATABASE_URL found, skipping migrations")
-            return
+        supabase_url = os.environ.get('SUPABASE_URL')
         
-        # Parse database URL
-        parsed = urlparse(database_url)
-        
-        # Connect to database
-        conn = psycopg2.connect(
-            host=parsed.hostname,
-            port=parsed.port or 5432,
-            database=parsed.path[1:],  # Remove leading slash
-            user=parsed.username,
-            password=parsed.password
-        )
-        
-        cursor = conn.cursor()
-        
-        # Read and execute migration files
-        migration_dir = './supabase/migrations'
-        if os.path.exists(migration_dir):
-            migration_files = sorted([f for f in os.listdir(migration_dir) if f.endswith('.sql')])
+        if database_url:
+            # Using local PostgreSQL
+            import psycopg2
+            from urllib.parse import urlparse
             
-            for migration_file in migration_files:
-                migration_path = os.path.join(migration_dir, migration_file)
-                logging.info(f"Running migration: {migration_file}")
+            logging.info("Using local PostgreSQL database")
+            
+            # Parse database URL
+            parsed = urlparse(database_url)
+            
+            # Connect to database
+            conn = psycopg2.connect(
+                host=parsed.hostname,
+                port=parsed.port or 5432,
+                database=parsed.path[1:],  # Remove leading slash
+                user=parsed.username,
+                password=parsed.password
+            )
+            
+            cursor = conn.cursor()
+            
+            # Read and execute migration files
+            migration_dir = './supabase/migrations'
+            if os.path.exists(migration_dir):
+                migration_files = sorted([f for f in os.listdir(migration_dir) if f.endswith('.sql')])
                 
-                with open(migration_path, 'r', encoding='utf-8') as f:
-                    sql_content = f.read()
-                
-                # Execute migration
-                cursor.execute(sql_content)
-                conn.commit()
-                logging.info(f"Migration completed: {migration_file}")
-        
-        cursor.close()
-        conn.close()
-        logging.info("All migrations completed successfully")
+                for migration_file in migration_files:
+                    migration_path = os.path.join(migration_dir, migration_file)
+                    logging.info(f"Running migration: {migration_file}")
+                    
+                    with open(migration_path, 'r', encoding='utf-8') as f:
+                        sql_content = f.read()
+                    
+                    # Execute migration
+                    cursor.execute(sql_content)
+                    conn.commit()
+                    logging.info(f"Migration completed: {migration_file}")
+            
+            cursor.close()
+            conn.close()
+            logging.info("All migrations completed successfully")
+            
+        elif supabase_url:
+            # Using Supabase - migrations are handled by Supabase
+            logging.info("Using Supabase - migrations handled externally")
+            
+        else:
+            logging.warning("No database configuration found (DATABASE_URL or SUPABASE_URL)")
         
     except Exception as e:
         logging.error(f"Migration failed: {e}")

@@ -1,133 +1,74 @@
-# Deploy Mini Video Factory với Coolify
+# Coolify Deployment Guide
 
-## Bước 1: Chuẩn bị Repository
-1. Push code lên GitHub repository của bạn
-2. Đảm bảo có các file: `docker-compose.yml`, `Dockerfile`, `.env.example`
+## Quick Fix for Current Issues
 
-## Bước 2: Tạo Application trong Coolify
+The deployment errors you're seeing are caused by:
 
-### 2.1 Tạo Resource mới
-- Vào Coolify dashboard
-- Click **"+ Add Resource"**
-- Chọn **"Application"**
-- Chọn **"Docker Compose"**
+1. **Missing migrate.py** - Fixed ✅
+2. **Permission denied on ./data/uploads** - Fixed ✅
 
-### 2.2 Config Repository
-```
-Repository URL: https://github.com/your-username/mini-video-factory
-Branch: main
-Build Pack: Docker Compose
-```
+## Environment Variables Required in Coolify
 
-### 2.3 Build Settings
-```
-Build Command: docker-compose build
-Start Command: docker-compose up -d
-Port: 8080
-Health Check Path: /health
-```
+Set these in your Coolify project environment variables:
 
-## Bước 3: Environment Variables
-
-Thêm các biến môi trường sau trong Coolify:
-
-### Required (Bắt buộc)
 ```bash
-SECRET_KEY=your-generated-secret-key-here
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-supabase-anon-key
-```
+# Required
+SECRET_KEY=your-secret-key-here
+DATABASE_URL=postgresql://postgres:password@postgres-db:5432/mini_video_factory
 
-### Optional (Tùy chọn)
-```bash
-# Wasabi Storage (bỏ trống để dùng local storage)
-WASABI_ENDPOINT=https://s3.region.wasabisys.com
-WASABI_REGION=us-east-1
-WASABI_BUCKET=your-bucket-name
+# Optional (Wasabi Storage)
+WASABI_ENDPOINT=https://s3.ap-southeast-1.wasabisys.com
+WASABI_REGION=ap-southeast-1
+WASABI_BUCKET=backend-testing
 WASABI_ACCESS_KEY_ID=your-access-key
 WASABI_SECRET_ACCESS_KEY=your-secret-key
-
-# App Configuration
-HOST_PORT=8080
-FLASK_ENV=production
-MAX_FILE_SIZE=104857600
-MAX_DURATION=600
 ```
 
-## Bước 4: Storage & Volumes
+## Setting up PostgreSQL in Coolify
 
-Trong Coolify, setup volumes:
-```
-./data:/app/data
-./logs:/app/logs
-```
+1. **Create PostgreSQL Database**:
+   - In Coolify, go to "Databases" 
+   - Create new PostgreSQL database
+   - Note the connection details
 
-## Bước 5: Domain & SSL
+2. **Set DATABASE_URL**:
+   ```
+   postgresql://username:password@hostname:5432/database_name
+   ```
 
-1. **Custom Domain** (optional):
-   - Thêm domain trong Coolify settings
-   - Point DNS A record đến server IP
-   - Coolify tự động setup SSL
+## Deployment Steps
 
-2. **Subdomain** (mặc định):
-   - Coolify sẽ tạo subdomain tự động
-   - Format: `app-name.your-coolify-domain.com`
+1. **Push the fixes to your repository**
+2. **In Coolify, set the environment variables above**
+3. **Redeploy the application**
 
-## Bước 6: Deploy
+The app will now:
+- ✅ Find the migrate.py file
+- ✅ Create directories with proper permissions
+- ✅ Use local PostgreSQL database on Coolify
+- ✅ Run database migrations automatically
+- ✅ Handle both local and cloud storage
 
-1. Click **"Deploy"**
-2. Theo dõi logs trong Coolify
-3. Đợi build hoàn thành (~2-5 phút)
-4. Access app qua URL được cung cấp
+## Files Changed
 
-## 🔧 Management
+- ✅ Created `migrate.py` - handles database migrations
+- ✅ Updated `Dockerfile` - fixes permission issues
+- ✅ Updated `start.sh` - better error handling
+- ✅ Updated `app.py` - graceful directory creation
+- ✅ Created `.env.production` - production config template
 
-### View Logs
-- Trong Coolify dashboard → Application → Logs
+## Testing
 
-### Restart Application
-- Coolify dashboard → Application → Restart
+After deployment, check:
+1. Health endpoint: `https://your-domain/health`
+2. Login page: `https://your-domain/login`
+3. Logs should show "Mini Video Factory starting up..." without errors
 
-### Update Application
-- Push code mới lên GitHub
-- Coolify tự động detect và redeploy
-- Hoặc manual trigger deploy trong dashboard
+## Troubleshooting
 
-### Environment Variables
-- Coolify dashboard → Application → Environment
-- Edit và restart để apply changes
-
-## 🚨 Troubleshooting
-
-### Build Failed
-1. Check logs trong Coolify
-2. Verify `docker-compose.yml` syntax
-3. Ensure all required files exist
-
-### App Not Starting
-1. Check environment variables
-2. Verify Supabase credentials
-3. Check health endpoint: `/health`
-
-### Storage Issues
-1. Verify volumes are mounted correctly
-2. Check disk space on server
-3. Ensure write permissions
-
-## 📊 Monitoring
-
-Coolify provides:
-- Real-time logs
-- Resource usage metrics
-- Health check status
-- Deployment history
-
-## 🎉 Success!
-
-Sau khi deploy thành công:
-- App sẽ chạy tại URL được Coolify cung cấp
-- SSL certificate tự động
-- Auto-restart nếu crash
-- Easy scaling và management
-
-**Lưu ý**: Coolify sẽ handle tất cả Docker, Nginx, SSL setup tự động. Bạn chỉ cần focus vào code!
+If you still see issues:
+1. Check Coolify logs for specific error messages
+2. Verify DATABASE_URL is set correctly
+3. Ensure PostgreSQL database is running and accessible
+4. Check volume mounts are working: `./data:/app/data`
+5. Verify database migrations ran successfully
