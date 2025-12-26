@@ -20,10 +20,22 @@ os.makedirs('./logs', exist_ok=True)
 if __name__ == '__main__':
     from app import app
     
+    # Check database configuration
+    database_url = os.environ.get('DATABASE_URL')
+    supabase_url = os.environ.get('SUPABASE_URL')
+    
     print("🚀 Starting Mini Video Factory (Local Development)")
-    print("📁 Using local SQLite database")
+    
+    if supabase_url:
+        print("📁 Using Supabase database")
+    elif database_url:
+        print("📁 Using local PostgreSQL database")
+    else:
+        print("⚠️  No database configured")
+    
     print("🌐 Access: http://localhost:5000")
     print("🔧 Debug mode: ON")
+    print("-" * 50)
     
     app.run(
         host='127.0.0.1',

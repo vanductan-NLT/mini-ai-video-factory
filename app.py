@@ -595,7 +595,7 @@ def health_check():
         return {
             'status': 'healthy', 
             'timestamp': datetime.utcnow().isoformat(),
-            'database': 'connected' if os.environ.get('DATABASE_URL') else 'not_configured'
+            'database': 'connected' if os.environ.get('DATABASE_URL') or os.environ.get('SUPABASE_URL') else 'not_configured'
         }
     except Exception as e:
         return {
@@ -603,15 +603,6 @@ def health_check():
             'error': str(e),
             'timestamp': datetime.utcnow().isoformat()
         }, 500
-
-@app.route('/')
-def index():
-    """Root endpoint"""
-    return {
-        'message': 'Mini Video Factory running',
-        'status': 'ok',
-        'timestamp': datetime.utcnow().isoformat()
-    }
 
 def run_migrations():
     """Run database migrations on startup"""
@@ -675,7 +666,7 @@ def run_migrations():
         pass
 
 if __name__ == '__main__':
-    # Run migrations on startup
+    # Only run migrations when running app.py directly (production)
     run_migrations()
     
     # Development server configuration

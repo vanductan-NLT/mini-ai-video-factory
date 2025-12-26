@@ -20,14 +20,17 @@ if [ -z "$SECRET_KEY" ]; then
     exit 1
 fi
 
-# Check database configuration - DATABASE_URL is required for local PostgreSQL
-if [ -z "$DATABASE_URL" ]; then
-    echo "ERROR: Missing required environment variable: DATABASE_URL"
-    echo "Please set DATABASE_URL to your PostgreSQL connection string"
+# Check database configuration - either DATABASE_URL or SUPABASE_URL is required
+if [ -z "$DATABASE_URL" ] && [ -z "$SUPABASE_URL" ]; then
+    echo "ERROR: Missing database configuration. Either DATABASE_URL or SUPABASE_URL is required"
     exit 1
 fi
 
-echo "Using local PostgreSQL database"
+if [ -n "$DATABASE_URL" ]; then
+    echo "Using local PostgreSQL database"
+elif [ -n "$SUPABASE_URL" ]; then
+    echo "Using Supabase database"
+fi
 
 # Run database migrations
 echo "Running database migrations..."
