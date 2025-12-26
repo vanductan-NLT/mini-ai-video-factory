@@ -117,11 +117,6 @@ class VideoProcessor:
         except Exception as e:
             logger.error(f"Auto-editor placeholder failed: {e}")
             return False
-                    raise VideoProcessingError(f"Auto-editor failed: {result.stderr}")
-                    
-            except subprocess.TimeoutExpired:
-                logger.error("Auto-editor timed out after 5 minutes")
-                raise VideoProcessingError("Auto-editor timed out - video may be too long or complex")
                 
         except FileNotFoundError:
             raise VideoProcessingError("auto-editor command not found. Please ensure it's installed with: pip install auto-editor")

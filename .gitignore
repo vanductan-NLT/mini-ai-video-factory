@@ -61,3 +61,7 @@ htmlcov/
 
 # Docker
 .dockerignore
+# Local development
+.env.local
+data/local.db
+*.db

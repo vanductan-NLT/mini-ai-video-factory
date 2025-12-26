@@ -17,8 +17,9 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
-# Skip migrations for now
-echo "Skipping database migrations for now..."
+# Run database migrations
+echo "Running database migrations..."
+python3 migrate.py
 
 # Start application
 if [ "${FLASK_DEBUG:-False}" = "True" ]; then
