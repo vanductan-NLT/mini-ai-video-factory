@@ -26,7 +26,6 @@ services:
       retries: 5
       start_period: 120s
     
-    # Production resource limits
     deploy:
       resources:
         limits:
@@ -34,7 +33,7 @@ services:
         reservations:
           memory: 512M
 
-  # Optional: Nginx for production
+  # Nginx proxy - NO PROFILES
   nginx:
     image: nginx:alpine
     container_name: mini-video-factory-nginx
@@ -48,19 +47,3 @@ services:
     
     depends_on:
       - mini-video-factory
-    
-    profiles:
-      - production
-
-  # Auto-update service (optional)
-  watchtower:
-    image: containrrr/watchtower
-    container_name: watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_POLL_INTERVAL=3600
-    profiles:
-      - auto-update
