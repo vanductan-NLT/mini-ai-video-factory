@@ -597,6 +597,15 @@ def health_check():
             'timestamp': datetime.utcnow().isoformat()
         }, 500
 
+@app.route('/')
+def index():
+    """Root endpoint"""
+    return {
+        'message': 'Mini Video Factory running',
+        'status': 'ok',
+        'timestamp': datetime.utcnow().isoformat()
+    }
+
 def run_migrations():
     """Run database migrations on startup"""
     try:
