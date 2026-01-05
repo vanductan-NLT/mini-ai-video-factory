@@ -291,6 +291,57 @@ def debug_jobs():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/retry_job/<job_id>', methods=['POST'])
+@login_required
+def retry_job(job_id):
+    """Retry a failed job using existing resources if available"""
+    try:
+        job = get_processing_job(job_id)
+        
+        if not job or job.user_id != current_user.get_id():
+            return jsonify({'error': 'Job not found'}), 404
+        
+        if job.status not in [ProcessingStatus.FAILED, ProcessingStatus.COMPLETED]:
+             return jsonify({'error': 'Job is already processing or queued'}), 400
+        
+        if video_processor is None:
+            return jsonify({'error': 'Video processor not available'}), 503
+        
+        # Reset job status to restart processing
+        # We set it to UPLOADED so the process_video logic treats it as a fresh start from that point
+        # But our modified video_processor will skip steps if files exist.
+        job.update_status(ProcessingStatus.UPLOADED, progress=0)
+        job.error_message = None
+        save_processing_job(job)
+        
+        # Log retry attempt
+        app.logger.info(f"Retrying job {job_id}...")
+
+        # Define progress callback
+        def progress_callback(message: str, progress: int):
+            app.logger.info(f"Job {job_id} retry progress: {message} ({progress}%)")
+        
+        # Start processing directly (sync for now as per existing design)
+        # In a real queue system, we would just push to queue here.
+        success = video_processor.process_video(job, progress_callback)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Job retry completed successfully',
+                'job_id': job.id
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': job.error_message or 'Retry failed',
+                'job_id': job.id
+            }), 500
+            
+    except Exception as e:
+        app.logger.error(f"Retry error for job {job_id}: {str(e)}")
+        return jsonify({'error': 'Retry failed. Please try again.'}), 500
+
 @app.route('/process_video/<job_id>', methods=['POST'])
 @login_required
 def process_video(job_id):

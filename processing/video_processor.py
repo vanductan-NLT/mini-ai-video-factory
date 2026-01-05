@@ -85,9 +85,15 @@ class VideoProcessor:
     
     def _download_input_file(self, job: ProcessingJob, temp_dir: str) -> str:
         """Download input file to temporary directory"""
+        local_path = os.path.join(temp_dir, f"input_{job.original_filename}")
+        
+        # Check if file already exists (for retry)
+        if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
+            logger.info(f"Input file already exists, skipping download: {local_path}")
+            return local_path
+
         if job.input_storage_key and self.storage_manager:
             # Download from Wasabi storage
-            local_path = os.path.join(temp_dir, f"input_{job.original_filename}")
             if self.storage_manager.download_file(job.input_storage_key, local_path):
                 logger.info(f"Downloaded input file from storage: {job.input_storage_key}")
                 return local_path
@@ -96,7 +102,6 @@ class VideoProcessor:
         
         elif job.input_file_path and os.path.exists(job.input_file_path):
             # Copy from local storage
-            local_path = os.path.join(temp_dir, f"input_{job.original_filename}")
             shutil.copy2(job.input_file_path, local_path)
             logger.info(f"Copied input file from local storage: {job.input_file_path}")
             return local_path
@@ -107,6 +112,10 @@ class VideoProcessor:
     def _run_auto_editor(self, input_path: str, output_path: str, progress_callback: Optional[Callable] = None) -> bool:
         """Run auto-editor to remove silent segments - placeholder mode"""
         try:
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                logger.info(f"Edited video already exists, skipping auto-editor: {output_path}")
+                return True
+
             logger.info(f"Auto-editor placeholder: {input_path} -> {output_path}")
             
             # Placeholder: just copy the file
@@ -127,6 +136,10 @@ class VideoProcessor:
     def _extract_audio(self, video_path: str, audio_path: str) -> bool:
         """Extract audio from video for transcription"""
         try:
+            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                logger.info(f"Audio file already exists, skipping extraction: {audio_path}")
+                return True
+
             logger.info(f"Extracting audio: {video_path} -> {audio_path}")
             
             cmd = [
@@ -157,6 +170,11 @@ class VideoProcessor:
     def _transcribe_audio(self, audio_path: str, srt_path: str, progress_callback: Optional[Callable] = None) -> bool:
         """Transcribe audio using Whisper and generate SRT file - placeholder mode"""
         try:
+            if os.path.exists(srt_path) and os.path.getsize(srt_path) > 0:
+                 logger.info(f"Subtitle file already exists, skipping transcription: {srt_path}")
+                 # Ensure we can read it though? Assuming yes.
+                 return True
+
             logger.info(f"Transcription placeholder: {audio_path} -> {srt_path}")
             
             if not WHISPER_AVAILABLE:
@@ -344,14 +362,12 @@ Transcription failed - placeholder mode
     
     def process_video(self, job: ProcessingJob, progress_callback: Optional[Callable[[str, int], None]] = None) -> bool:
         """
-        Process a video through the complete pipeline
-        
-        Args:
-            job: ProcessingJob instance
-            progress_callback: Optional callback function for progress updates (message, progress_percent)
-        
-        Returns:
-            bool: True if processing succeeded, False otherwise
+        Process a video through the complete pipeline:
+        1. Auto-edit silent parts
+        2. Transcribe audio
+        3. Analyze transcript for scenes (LLM)
+        4. Generate Remotion video with effects
+        5. Upload result
         """
         temp_dir = None
         
@@ -388,43 +404,70 @@ Transcription failed - placeholder mode
             self._extract_audio(edited_path, audio_path)
             
             # Step 4: Transcribe audio
-            update_progress("Generating subtitles...", 60)
-            
+            update_progress("Transcribing audio...", 50)
             srt_path = os.path.join(temp_dir, "subtitles.srt")
             self._transcribe_audio(audio_path, srt_path, lambda msg: update_progress(msg, None))
             
-            # Step 5: Embed subtitles
-            job.update_status(ProcessingStatus.ADDING_SUBTITLES, progress=80)
-            update_progress("Embedding subtitles...", 80)
+            # Retrieve transcript text
+            # Since _transcribe_audio doesn't return the text directly in the current implementation,
+            # we can read the SRT/text (or ideally, refactor to get the text directly).
+            # For now, let's assume we read from the SRT or re-transcribe.
+            # To respect existing flow, we'll read the parsed SRT content or assume a simple mapping.
+            # Ideally, we should modify _transcribe_audio to return the text.
+            # Let's read the SRT file and extract text lines for now.
+            transcript_text = ""
+            if os.path.exists(srt_path):
+                 with open(srt_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        # Very naive SRT text extraction
+                        if "-->" not in line and line.strip() and not line.strip().isdigit():
+                            transcript_text += line.strip() + " "
             
-            final_output_path = os.path.join(temp_dir, f"final_{job.original_filename}")
-            self._embed_subtitles(edited_path, srt_path, final_output_path, lambda msg: update_progress(msg, None))
+            # Step 5: Analyze Content & Generate Remotion
+            job.update_status(ProcessingStatus.ADDING_SUBTITLES, progress=60) # Keeping similar enum status for compatibility
+            update_progress("Analyzing content with AI...", 60)
             
-            # Step 6: Collect processed video metadata
-            update_progress("Collecting video metadata...", 85)
+            # Dynamic imports
+            from processing.transcript_analyzer import TranscriptAnalyzer
+            from processing.remotion_generator import RemotionGenerator
+            
+            analyzer = TranscriptAnalyzer()
+            remotion_gen = RemotionGenerator(remotion_dir=os.path.abspath("./remotion-video"))
+            
+            scenes = analyzer.analyze(transcript_text)
+            update_progress(f"Generating video scenes...", 70)
+            
+            remotion_gen.generate_composition(scenes, video_path=edited_path)
+            
+            # Step 6: Render Final Video with Remotion
+            update_progress("Rendering pro video with Remotion...", 80)
+            final_output_filename = f"final_{job.id}.mp4"
+            final_output_path = remotion_gen.render_video("GeneratedVideo", final_output_filename) # Will be in remotion-video/out/
+            
+            # Step 7: Collect processed video metadata
+            update_progress("Collecting video metadata...", 90)
             processed_video_info = self._get_video_info(final_output_path)
             if processed_video_info:
                 job.set_processed_video_info(processed_video_info)
-                logger.info(f"Collected processed video metadata: {processed_video_info}")
             
-            # Step 7: Upload output file
-            update_progress("Uploading processed video...", 90)
-            
+            # Step 8: Upload output file
+            update_progress("Uploading processed video...", 95)
             output_location = self._upload_output_file(job, final_output_path)
             
             # Update job with output information
             if output_location.startswith('/') or output_location.startswith('.'):
-                # Local path
                 job.output_file_path = output_location
                 job.output_storage_key = None
             else:
-                # Storage key
                 job.output_file_path = None
                 job.output_storage_key = output_location
             
             # Mark as completed
             job.update_status(ProcessingStatus.COMPLETED, progress=100)
             update_progress("Processing completed!", 100)
+            
+            # Cleanup temp directory ONLY on success
+            self._cleanup_temp_directory(temp_dir)
             
             logger.info(f"Video processing completed successfully for job {job.id}")
             return True
@@ -435,6 +478,7 @@ Transcription failed - placeholder mode
             if progress_callback:
                 progress_callback(f"Processing failed: {e}", job.progress)
             save_processing_job(job)
+            # NOT cleaning up temp dir to allow retry
             return False
             
         except Exception as e:
@@ -443,12 +487,10 @@ Transcription failed - placeholder mode
             if progress_callback:
                 progress_callback(f"Processing failed: {e}", job.progress)
             save_processing_job(job)
+            # NOT cleaning up temp dir to allow retry
             return False
             
-        finally:
-            # Clean up temporary directory
-            if temp_dir:
-                self._cleanup_temp_directory(temp_dir)
+        # finally block removed to preserve files on error
     
     def get_processing_status(self, job_id: str) -> Optional[Dict[str, Any]]:
         """Get current processing status for a job"""

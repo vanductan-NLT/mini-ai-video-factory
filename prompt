@@ -1,0 +1,9 @@
+Các chức năng t muốn làm tiếp theo:
+
+- Thêm text effect, background effect, content animation, transition cho video.
+- Tech stack: remotion. 
+- Cashc thiết lập: 
++ npx create-video@latest
++ Ko tạo lại các effect từ đầu, mà dùng những cái có sẵn trong file: remotion_templates.md
++ về transition: npm i --save-exact @remotion/transitions@4.0.399, ko cần build lại từ đầu mà dũng những cái có sẵn trong remotion_transition.md    
++ Video ko cần subtitle nữa, loại bỏ cái này. 

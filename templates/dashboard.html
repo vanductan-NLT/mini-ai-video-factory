@@ -12,23 +12,23 @@
         border: 2px dashed #dee2e6;
         transition: border-color 0.3s;
     }
-    
+
     .upload-section.dragover {
         border-color: #667eea;
         background: #f0f4ff;
     }
-    
+
     .upload-area {
         text-align: center;
         padding: 2rem;
     }
-    
+
     .file-input-wrapper {
         position: relative;
         display: inline-block;
         margin: 1rem 0;
     }
-    
+
     .file-input {
         position: absolute;
         opacity: 0;
@@ -36,7 +36,7 @@
         height: 100%;
         cursor: pointer;
     }
-    
+
     .file-input-btn {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -48,22 +48,22 @@
         cursor: pointer;
         transition: transform 0.2s;
     }
-    
+
     .file-input-btn:hover {
         transform: translateY(-2px);
     }
-    
+
     .upload-info {
         margin-top: 1rem;
         color: #666;
         font-size: 0.9rem;
     }
-    
+
     .progress-section {
         display: none;
         margin-top: 2rem;
     }
-    
+
     .progress-bar {
         width: 100%;
         height: 20px;
@@ -72,24 +72,24 @@
         overflow: hidden;
         margin: 1rem 0;
     }
-    
+
     .progress-fill {
         height: 100%;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         width: 0%;
         transition: width 0.3s ease;
     }
-    
+
     .progress-text {
         text-align: center;
         margin: 0.5rem 0;
         font-weight: 600;
     }
-    
+
     .jobs-section {
         margin-top: 2rem;
     }
-    
+
     .job-item {
         background: white;
         border: 1px solid #dee2e6;
@@ -100,33 +100,33 @@
         justify-content: space-between;
         align-items: center;
     }
-    
+
     .job-info {
         flex-grow: 1;
     }
-    
+
     .job-status {
         padding: 0.25rem 0.75rem;
         border-radius: 15px;
         font-size: 0.8rem;
         font-weight: 600;
     }
-    
+
     .status-completed {
         background: #d4edda;
         color: #155724;
     }
-    
+
     .status-failed {
         background: #f8d7da;
         color: #721c24;
     }
-    
+
     .status-processing {
         background: #fff3cd;
         color: #856404;
     }
-    
+
     .error-message {
         background: #f8d7da;
         color: #721c24;
@@ -135,7 +135,7 @@
         margin: 1rem 0;
         display: none;
     }
-    
+
     .success-message {
         background: #d4edda;
         color: #155724;
@@ -144,7 +144,7 @@
         margin: 1rem 0;
         display: none;
     }
-    
+
     .btn {
         padding: 0.5rem 1rem;
         border: none;
@@ -157,21 +157,21 @@
         display: inline-block;
         text-align: center;
     }
-    
+
     .btn-primary {
         background: #667eea;
         color: white;
     }
-    
+
     .btn-primary:hover {
         background: #5a6fd8;
     }
-    
+
     .btn-success {
         background: #28a745;
         color: white;
     }
-    
+
     .btn-success:hover {
         background: #218838;
     }
@@ -187,19 +187,19 @@
         </div>
         <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
     </div>
-    
+
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-messages">
-                {% for category, message in messages %}
-                    <div class="flash-message flash-{{ category }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+    {% if messages %}
+    <div class="flash-messages">
+        {% for category, message in messages %}
+        <div class="flash-message flash-{{ category }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% endwith %}
-    
+
     <!-- Upload Section -->
     <div class="upload-section" id="uploadSection">
         <div class="upload-area">
@@ -207,23 +207,23 @@
             <p style="color: #666; margin-bottom: 1.5rem;">
                 Drop your video file here or click to browse
             </p>
-            
+
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="file-input-wrapper">
-                    <input type="file" id="videoFile" name="video_file" class="file-input" 
-                           accept=".mp4,.avi,.mov,.mpeg,.mpg,.wmv" required>
+                    <input type="file" id="videoFile" name="video_file" class="file-input"
+                        accept=".mp4,.avi,.mov,.mpeg,.mpg,.wmv" required>
                     <button type="button" class="file-input-btn">
                         📁 Choose Video File
                     </button>
                 </div>
             </form>
-            
+
             <div class="upload-info">
                 <p><strong>Supported formats:</strong> MP4, AVI, MOV, MPEG, WMV</p>
                 <p><strong>Maximum size:</strong> 100MB | <strong>Maximum duration:</strong> 10 minutes</p>
             </div>
         </div>
-        
+
         <!-- Progress Section -->
         <div class="progress-section" id="progressSection">
             <div class="progress-text" id="progressText">Uploading...</div>
@@ -232,12 +232,12 @@
             </div>
             <div id="progressPercent" style="text-align: center; font-size: 0.9rem; color: #666;">0%</div>
         </div>
-        
+
         <!-- Messages -->
         <div class="error-message" id="errorMessage"></div>
         <div class="success-message" id="successMessage"></div>
     </div>
-    
+
     <!-- Jobs Section -->
     <div class="jobs-section">
         <h3 style="margin-bottom: 1rem; color: #333;">Your Processing Jobs</h3>
@@ -252,187 +252,189 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const uploadSection = document.getElementById('uploadSection');
-    const uploadForm = document.getElementById('uploadForm');
-    const videoFile = document.getElementById('videoFile');
-    const progressSection = document.getElementById('progressSection');
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
-    const progressPercent = document.getElementById('progressPercent');
-    const errorMessage = document.getElementById('errorMessage');
-    const successMessage = document.getElementById('successMessage');
-    const jobsList = document.getElementById('jobsList');
-    
-    let currentJobId = null;
-    let progressInterval = null;
-    
-    // Load existing jobs on page load
-    loadUserJobs();
-    
-    // Drag and drop functionality
-    uploadSection.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        uploadSection.classList.add('dragover');
-    });
-    
-    uploadSection.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        uploadSection.classList.remove('dragover');
-    });
-    
-    uploadSection.addEventListener('drop', function(e) {
-        e.preventDefault();
-        uploadSection.classList.remove('dragover');
-        
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            videoFile.files = files;
-            handleFileUpload();
-        }
-    });
-    
-    // File input change
-    videoFile.addEventListener('change', function() {
-        if (this.files.length > 0) {
-            handleFileUpload();
-        }
-    });
-    
-    function handleFileUpload() {
-        const file = videoFile.files[0];
-        if (!file) return;
-        
-        // Reset UI
-        hideMessages();
-        showProgress();
-        updateProgress(0, 'Preparing upload...');
-        
-        // Create form data
-        const formData = new FormData();
-        formData.append('video_file', file);
-        
-        // Upload file
-        fetch('/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                currentJobId = data.job_id;
-                showSuccess('File uploaded successfully! Processing will begin shortly.');
-                startProgressTracking();
-                loadUserJobs(); // Refresh jobs list
-            } else {
-                showError(data.error || 'Upload failed');
-                hideProgress();
+    document.addEventListener('DOMContentLoaded', function () {
+        const uploadSection = document.getElementById('uploadSection');
+        const uploadForm = document.getElementById('uploadForm');
+        const videoFile = document.getElementById('videoFile');
+        const progressSection = document.getElementById('progressSection');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const progressPercent = document.getElementById('progressPercent');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const jobsList = document.getElementById('jobsList');
+
+        let currentJobId = null;
+        let progressInterval = null;
+
+        // Load existing jobs on page load
+        loadUserJobs();
+
+        // Drag and drop functionality
+        uploadSection.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', function (e) {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', function (e) {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                videoFile.files = files;
+                handleFileUpload();
             }
-        })
-        .catch(error => {
-            console.error('Upload error:', error);
-            showError('Upload failed. Please try again.');
-            hideProgress();
         });
-    }
-    
-    function startProgressTracking() {
-        if (!currentJobId) return;
-        
-        progressInterval = setInterval(() => {
-            fetch(`/upload_progress/${currentJobId}`)
-            .then(response => response.json())
-            .then(data => {
-                updateProgress(data.progress, data.status_display);
-                
-                if (data.completed) {
-                    clearInterval(progressInterval);
-                    progressInterval = null;
-                    
-                    if (data.error_message) {
-                        showError(`Processing failed: ${data.error_message}`);
-                    } else {
-                        showSuccess('Video processing completed successfully!');
-                    }
-                    
-                    setTimeout(() => {
-                        hideProgress();
-                        loadUserJobs();
-                    }, 3000);
-                }
+
+        // File input change
+        videoFile.addEventListener('change', function () {
+            if (this.files.length > 0) {
+                handleFileUpload();
+            }
+        });
+
+        function handleFileUpload() {
+            const file = videoFile.files[0];
+            if (!file) return;
+
+            // Reset UI
+            hideMessages();
+            showProgress();
+            updateProgress(0, 'Preparing upload...');
+
+            // Create form data
+            const formData = new FormData();
+            formData.append('video_file', file);
+
+            // Upload file
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
             })
-            .catch(error => {
-                console.error('Progress tracking error:', error);
-                clearInterval(progressInterval);
-                progressInterval = null;
-            });
-        }, 2000); // Check every 2 seconds
-    }
-    
-    function updateProgress(percent, status) {
-        progressFill.style.width = percent + '%';
-        progressPercent.textContent = percent + '%';
-        progressText.textContent = status;
-    }
-    
-    function showProgress() {
-        progressSection.style.display = 'block';
-    }
-    
-    function hideProgress() {
-        progressSection.style.display = 'none';
-        videoFile.value = ''; // Reset file input
-    }
-    
-    function showError(message) {
-        errorMessage.textContent = message;
-        errorMessage.style.display = 'block';
-        successMessage.style.display = 'none';
-    }
-    
-    function showSuccess(message) {
-        successMessage.textContent = message;
-        successMessage.style.display = 'block';
-        errorMessage.style.display = 'none';
-    }
-    
-    function hideMessages() {
-        errorMessage.style.display = 'none';
-        successMessage.style.display = 'none';
-    }
-    
-    function loadUserJobs() {
-        fetch('/user_jobs')
-        .then(response => response.json())
-        .then(data => {
-            displayJobs(data.jobs);
-        })
-        .catch(error => {
-            console.error('Error loading jobs:', error);
-        });
-    }
-    
-    function displayJobs(jobs) {
-        if (jobs.length === 0) {
-            jobsList.innerHTML = '<p style="color: #666; text-align: center; padding: 2rem;">No processing jobs yet. Upload a video to get started!</p>';
-            return;
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        currentJobId = data.job_id;
+                        showSuccess('File uploaded successfully! Processing will begin shortly.');
+                        startProgressTracking();
+                        loadUserJobs(); // Refresh jobs list
+                    } else {
+                        showError(data.error || 'Upload failed');
+                        hideProgress();
+                    }
+                })
+                .catch(error => {
+                    console.error('Upload error:', error);
+                    showError('Upload failed. Please try again.');
+                    hideProgress();
+                });
         }
-        
-        const jobsHtml = jobs.map(job => {
-            const statusClass = getStatusClass(job.status);
-            const createdAt = new Date(job.created_at).toLocaleString();
-            
-            let actionButton = '';
-            if (job.status === 'uploaded') {
-                actionButton = `<button onclick="startProcessing('${job.id}')" class="btn btn-primary" style="margin-left: 1rem;">Start Processing</button>`;
-            } else if (job.status === 'completed') {
-                actionButton = `
+
+        function startProgressTracking() {
+            if (!currentJobId) return;
+
+            progressInterval = setInterval(() => {
+                fetch(`/upload_progress/${currentJobId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        updateProgress(data.progress, data.status_display);
+
+                        if (data.completed) {
+                            clearInterval(progressInterval);
+                            progressInterval = null;
+
+                            if (data.error_message) {
+                                showError(`Processing failed: ${data.error_message}`);
+                            } else {
+                                showSuccess('Video processing completed successfully!');
+                            }
+
+                            setTimeout(() => {
+                                hideProgress();
+                                loadUserJobs();
+                            }, 3000);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Progress tracking error:', error);
+                        clearInterval(progressInterval);
+                        progressInterval = null;
+                    });
+            }, 2000); // Check every 2 seconds
+        }
+
+        function updateProgress(percent, status) {
+            progressFill.style.width = percent + '%';
+            progressPercent.textContent = percent + '%';
+            progressText.textContent = status;
+        }
+
+        function showProgress() {
+            progressSection.style.display = 'block';
+        }
+
+        function hideProgress() {
+            progressSection.style.display = 'none';
+            videoFile.value = ''; // Reset file input
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+        }
+
+        function hideMessages() {
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+        }
+
+        function loadUserJobs() {
+            fetch('/user_jobs')
+                .then(response => response.json())
+                .then(data => {
+                    displayJobs(data.jobs);
+                })
+                .catch(error => {
+                    console.error('Error loading jobs:', error);
+                });
+        }
+
+        function displayJobs(jobs) {
+            if (jobs.length === 0) {
+                jobsList.innerHTML = '<p style="color: #666; text-align: center; padding: 2rem;">No processing jobs yet. Upload a video to get started!</p>';
+                return;
+            }
+
+            const jobsHtml = jobs.map(job => {
+                const statusClass = getStatusClass(job.status);
+                const createdAt = new Date(job.created_at).toLocaleString();
+
+                let actionButton = '';
+                if (job.status === 'uploaded') {
+                    actionButton = `<button onclick="startProcessing('${job.id}')" class="btn btn-primary" style="margin-left: 1rem;">Start Processing</button>`;
+                } else if (job.status === 'completed') {
+                    actionButton = `
                     <a href="/preview/${job.id}" class="btn btn-primary" style="margin-left: 0.5rem;">👁️ Preview</a>
                     <a href="/download/${job.id}" class="btn btn-success" style="margin-left: 0.5rem;">📥 Download</a>
                 `;
-            }
-            
-            return `
+                } else if (job.status === 'failed') {
+                    actionButton = `<button onclick="retryJob('${job.id}')" class="btn btn-warning" style="margin-left: 1rem; background-color: #ffc107; color: #212529;">🔄 Retry</button>`;
+                }
+
+                return `
                 <div class="job-item">
                     <div class="job-info">
                         <div style="font-weight: 600; margin-bottom: 0.25rem;">${job.original_filename}</div>
@@ -452,45 +454,69 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
             `;
-        }).join('');
-        
-        jobsList.innerHTML = jobsHtml;
-    }
-    
-    function getStatusClass(status) {
-        switch(status) {
-            case 'completed':
-                return 'status-completed';
-            case 'failed':
-                return 'status-failed';
-            default:
-                return 'status-processing';
+            }).join('');
+
+            jobsList.innerHTML = jobsHtml;
         }
-    }
-    
-    // Global function to start processing
-    window.startProcessing = function(jobId) {
-        if (confirm('Start processing this video? This may take several minutes.')) {
-            showSuccess('Starting video processing...');
-            
-            fetch(`/process_video/${jobId}`, {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showSuccess('Video processing completed successfully!');
-                } else {
-                    showError(data.error || 'Processing failed');
-                }
-                loadUserJobs(); // Refresh jobs list
-            })
-            .catch(error => {
-                console.error('Processing error:', error);
-                showError('Processing failed. Please try again.');
-            });
+
+        function getStatusClass(status) {
+            switch (status) {
+                case 'completed':
+                    return 'status-completed';
+                case 'failed':
+                    return 'status-failed';
+                default:
+                    return 'status-processing';
+            }
         }
-    };
-});
+
+        // Global function to start processing
+        window.startProcessing = function (jobId) {
+            if (confirm('Start processing this video? This may take several minutes.')) {
+                showSuccess('Starting video processing...');
+
+                fetch(`/process_video/${jobId}`, {
+                    method: 'POST'
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showSuccess('Video processing completed successfully!');
+                        } else {
+                            showError(data.error || 'Processing failed');
+                        }
+                        loadUserJobs(); // Refresh jobs list
+                    })
+                    .catch(error => {
+                        console.error('Processing error:', error);
+                        showError('Processing failed. Please try again.');
+                    });
+            }
+        };
+
+        // Global function to retry processing
+        window.retryJob = function (jobId) {
+            if (confirm('Retry processing this video? It will attempt to reuse existing resources.')) {
+                showSuccess('Retrying video processing...');
+
+                fetch(`/retry_job/${jobId}`, {
+                    method: 'POST'
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showSuccess('Job retry completed successfully!');
+                        } else {
+                            showError(data.error || 'Retry failed');
+                        }
+                        loadUserJobs(); // Refresh jobs list
+                    })
+                    .catch(error => {
+                        console.error('Retry error:', error);
+                        showError('Retry failed. Please try again.');
+                    });
+            }
+        };
+    });
 </script>
 {% endblock %}
