@@ -1,9 +1,12 @@
-Các chức năng t muốn làm tiếp theo:
+Chức năng t muốn làm: 
 
-- Thêm text effect, background effect, content animation, transition cho video.
-- Tech stack: remotion. 
-- Cashc thiết lập: 
-+ npx create-video@latest
-+ Ko tạo lại các effect từ đầu, mà dùng những cái có sẵn trong file: remotion_templates.md
-+ về transition: npm i --save-exact @remotion/transitions@4.0.399, ko cần build lại từ đầu mà dũng những cái có sẵn trong remotion_transition.md    
-+ Video ko cần subtitle nữa, loại bỏ cái này. 
+- Hiện tại đã có kho components cần thiết cho edit video cơ bản. 
+- Bây giờ t cần nó giống như một video đã được edit chuyên nghiệp. 
+- Flow hoạt động: 
++ Người dùng upload video 
++ Transcibe video -> AI phân tích 
++ Highlight deetection. 
++ Tạo plan.json, bao gồm các highlight và các transition cần thiết. 
++ Tạo video edit theo plan.json. 
++ Tạo video final, bao gồm các hiệu ứng, text effect, background effect, content animation, transition
++ Render video final

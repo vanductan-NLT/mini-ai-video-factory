@@ -3,7 +3,8 @@ import os
 import subprocess
 import logging
 import json
-from typing import List, Dict, Any
+import shutil
+from typing import List, Dict, Any, Set
 
 logger = logging.getLogger(__name__)
 
@@ -11,136 +12,181 @@ class RemotionGenerator:
     def __init__(self, remotion_dir: str = "./remotion-video"):
         self.remotion_dir = remotion_dir
         self.output_dir = os.path.join(remotion_dir, "out")
+        
+        # Mapping of component names to their relative paths for imports
+        self.component_paths = {
+            "MatrixRain": "./components/background/MatrixRain",
+            "LiquidWave": "./components/background/LiquidWave",
+            "ParticleBackground": "./components/background/ParticleBackground",
+            "GradientShift": "./components/background/GradientShift",
+            "GeometricPattern": "./components/background/GeometricPattern",
+            "SlideText": "./components/text/SlideText",
+            "KineticText": "./components/text/KineticText",
+            "GlitchText": "./components/text/GlitchText",
+            "NeonText": "./components/text/NeonText",
+            "ChartAnimation": "./components/animation/ChartAnimation",
+            "ContentScene": "./scenes/ContentScene",
+            "HighlightMarker": "./components/overlay/HighlightMarker",
+            "ProgressBar": "./components/overlay/ProgressBar",
+            "KeyPointCallout": "./components/overlay/KeyPointCallout"
+        }
 
-    def generate_composition(self, scenes: List[Dict[str, Any]], video_path: str = None, output_file: str = "src/GeneratedVideo.tsx"):
+    def generate_from_plan(self, plan_path: str, video_path: str = None, output_file: str = "src/GeneratedVideo.tsx"):
         """
-        Generate a Remotion React component file based on the analyzed scenes.
-        Also copies the input video to public folder for easy access.
+        Generate Remotion TSX from a plan.json file.
         """
+        if not os.path.exists(plan_path):
+            raise FileNotFoundError(f"Plan file not found: {plan_path}")
+            
+        with open(plan_path, 'r', encoding='utf-8') as f:
+            plan = json.load(f)
+            
         # Copy video file if provided
         if video_path and os.path.exists(video_path):
-            import shutil
             public_dir = os.path.join(self.remotion_dir, "public")
             os.makedirs(public_dir, exist_ok=True)
             dest_video = os.path.join(public_dir, "input.mp4")
             shutil.copy2(video_path, dest_video)
             logger.info(f"Copied input video to {dest_video}")
 
+        # 1. Collect required imports
+        imports = self._get_imports_from_plan(plan)
+        
+        # 2. Build composition
+        component_code = self._build_composition_code(plan)
+        
+        # 3. Write file
+        full_content = "\n".join(imports) + "\n\n" + component_code
+        output_path = os.path.join(self.remotion_dir, output_file)
+        
+        with open(output_path, "w", encoding='utf-8') as f:
+            f.write(full_content)
+            
+        logger.info(f"Generated professional Remotion composition at {output_path}")
+        return output_path
+
+    def _get_imports_from_plan(self, plan: Dict[str, Any]) -> List[str]:
+        """Dynamically generate import statements based on plan content."""
+        used_components: Set[str] = set()
+        used_transitions: Set[str] = set()
+        
+        for seq in plan.get("sequences", []):
+            for layer in seq.get("layers", []):
+                comp = layer.get("component")
+                if comp and comp != "OffthreadVideo":
+                    used_components.add(comp)
+            
+            trans = seq.get("transition")
+            if trans:
+                used_transitions.add(trans.get("type"))
+                
         imports = [
             'import { TransitionSeries, linearTiming } from "@remotion/transitions";',
-            'import { slide } from "@remotion/transitions/slide";',
-            'import { fade } from "@remotion/transitions/fade";',
-            'import { wipe } from "@remotion/transitions/wipe";',
-            'import { flip } from "@remotion/transitions/flip";',
-            'import { clockWipe } from "@remotion/transitions/clock-wipe";',
-            'import { IntroScene } from "./scenes/IntroScene";',
-            'import { ContentScene } from "./scenes/ContentScene";',
-            'import { OutroScene } from "./scenes/OutroScene";',
-            'import { OffthreadVideo, staticFile } from "remotion";',
+            'import { OffthreadVideo, staticFile, AbsoluteFill } from "remotion";',
             'import React from "react";'
         ]
         
-        component_code = """
-export const GeneratedVideo: React.FC = () => {
-  return (
-    <TransitionSeries>
-"""
-        
-        fps = 30
-        
-        for i, scene in enumerate(scenes):
-            duration_sec = scene.get('end_time', 5) - scene.get('start_time', 0)
-            duration_frames = int(duration_sec * fps)
-            scene_type = scene.get('type')
+        # Add transition imports
+        for t in used_transitions:
+            imports.append(f'import {{ {t} }} from "@remotion/transitions/{t}";')
             
-            # Map scene type/effect to Component
-            scene_component_code = ""
-            
-            if scene_type == 'intro':
-                scene_component_code = f"<{self._scene_component_name(scene_type)} />"
-            elif scene_type == 'outro':
-                scene_component_code = f"<{self._scene_component_name(scene_type)} />"
-            else: # Content scene - Input video + Overlay
-                start_frame = int(scene.get('start_time', 0) * fps)
-                scene_component_code = f"""
-        <div style={{{{ flex: 1, backgroundColor: 'black' }}}}>
-            <OffthreadVideo 
-                src={{staticFile("input.mp4")}} 
-                startFrom={{{start_frame}}}
-                endAt={{{start_frame + duration_frames}}}
-                style={{{{ width: "100%", height: "100%", objectFit: "cover" }}}}
-            />
-            <div style={{{{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}}}>
-                <{self._scene_component_name(scene_type)} />
-            </div>
-        </div>"""
+        # Add component imports
+        for comp in used_components:
+            path = self.component_paths.get(comp)
+            if path:
+                imports.append(f'import {{ {comp} }} from "{path}";')
+            else:
+                logger.warning(f"Unknown component path for: {comp}")
                 
-            component_code += f"""      <TransitionSeries.Sequence durationInFrames={{{duration_frames}}}>
-        {scene_component_code}
-      </TransitionSeries.Sequence>
-"""
+        return imports
+
+    def _build_composition_code(self, plan: Dict[str, Any]) -> str:
+        """Build the main GeneratedVideo component body."""
+        sequences = plan.get("sequences", [])
+        
+        code = "export const GeneratedVideo: React.FC = () => {\n"
+        code += "  return (\n"
+        code += "    <TransitionSeries>\n"
+        
+        for i, seq in enumerate(sequences):
+            duration = seq.get("durationInFrames", 30)
+            seq_id = seq.get("id", f"seq_{i}")
             
-            # Add transition if not the last scene
-            if i < len(scenes) - 1:
-                transition_name = scene.get('suggested_transition', 'fade')
-                transition_code = self._get_transition_code(transition_name)
-                component_code += transition_code
-
-        component_code += """    </TransitionSeries>
-  );
-};
-
-"""
+            code += f"      {{/* {seq_id} - {seq.get('type')} */}}\n"
+            code += f"      <TransitionSeries.Sequence durationInFrames={{{duration}}}>\n"
+            
+            # Use AbsoluteFill for intro/outro/content layers
+            code += "        <AbsoluteFill>\n"
+            
+            for layer in seq.get("layers", []):
+                code += self._render_layer(layer)
+                
+            code += "        </AbsoluteFill>\n"
+            code += "      </TransitionSeries.Sequence>\n\n"
+            
+            # Add transition
+            trans = seq.get("transition")
+            if trans and i < len(sequences) - 1:
+                t_type = trans.get("type", "fade")
+                t_dur = trans.get("durationInFrames", 30)
+                t_dir = trans.get("direction")
+                
+                presentation = f"{t_type}({{ direction: '{t_dir}' }})" if t_dir else f"{t_type}()"
+                
+                code += f"      <TransitionSeries.Transition\n"
+                code += f"        presentation={{{presentation}}}\n"
+                code += f"        timing={{linearTiming({{ durationInFrames: {t_dur} }})}}\n"
+                code += f"      />\n\n"
+                
+        code += "    </TransitionSeries>\n"
+        code += "  );\n"
+        code += "};\n"
         
-        full_content = "\n".join(imports) + "\n\n" + component_code
+        return code
+
+    def _render_layer(self, layer: Dict[str, Any]) -> str:
+        """Convert a layer object to JSX code."""
+        comp = layer.get("component")
+        props = layer.get("props", {})
+        style = layer.get("style", {})
         
-        output_path = os.path.join(self.remotion_dir, output_file)
-        with open(output_path, "w") as f:
-            f.write(full_content)
+        jsx_props = self._props_to_jsx(props)
+        jsx_style = ""
+        if style:
+            jsx_style = f" style={{{json.dumps(style)}}}"
+            
+        if comp == "OffthreadVideo":
+            return f"          <OffthreadVideo{jsx_props}{jsx_style} />\n"
         
-        logger.info(f"Generated Remotion composition at {output_path}")
-        return output_path
+        if style:
+            return f"          <div{jsx_style}>\n            <{comp}{jsx_props} />\n          </div>\n"
+        else:
+            return f"          <{comp}{jsx_props} />\n"
 
-    def _scene_component_name(self, type_name: str) -> str:
-        if type_name == 'intro': return 'IntroScene'
-        if type_name == 'outro': return 'OutroScene'
-        return 'ContentScene'
+    def _props_to_jsx(self, props: Dict[str, Any]) -> str:
+        """Convert Python dictionary to JSX props string."""
+        if not props:
+            return ""
+            
+        parts = []
+        for key, value in props.items():
+            if isinstance(value, str):
+                if value.startswith("staticFile("):
+                    # Handle staticFile calls
+                    parts.append(f'{key}={{{value}}}')
+                else:
+                    parts.append(f'{key}="{value}"')
+            elif isinstance(value, bool):
+                parts.append(f'{key}={{{str(value).lower()}}}')
+            elif isinstance(value, (int, float, dict, list)):
+                parts.append(f'{key}={{{json.dumps(value)}}}')
+            else:
+                parts.append(f'{key}={{{value}}}')
+                
+        return " " + " ".join(parts) if parts else ""
 
-    def _get_transition_code(self, name: str) -> str:
-        """Helper to get transition JSX"""
-        if name == "slide":
-            return """      <TransitionSeries.Transition
-        presentation={slide({ direction: "from-right" })}
-        timing={linearTiming({ durationInFrames: 30 })}
-      />
-"""
-        elif name == "wipe":
-             return """      <TransitionSeries.Transition
-        presentation={wipe({ direction: "from-top-left" })}
-        timing={linearTiming({ durationInFrames: 30 })}
-      />
-"""
-        elif name == "flip":
-             return """      <TransitionSeries.Transition
-        presentation={flip()}
-        timing={linearTiming({ durationInFrames: 30 })}
-      />
-"""
-        elif name == "clockWipe":
-             return """      <TransitionSeries.Transition
-        presentation={clockWipe({ width: 1920, height: 1080 })}
-        timing={linearTiming({ durationInFrames: 30 })}
-      />
-"""
-        else: # default fade
-             return """      <TransitionSeries.Transition
-        presentation={fade()}
-        timing={linearTiming({ durationInFrames: 30 })}
-      />
-"""
-
-    def render_video(self, composition_id: str = "GeneratedVideo", output_filename: str = "output.mp4"):
-        """Run npx remotion render"""
+    def render_video(self, composition_id: str = "GeneratedVideo", output_filename: str = "output.mp4", props: Dict[str, Any] = None):
+        """Run npx remotion render with optional props"""
         import platform
         npx_cmd = "npx.cmd" if platform.system() == "Windows" else "npx"
         
@@ -149,11 +195,12 @@ export const GeneratedVideo: React.FC = () => {
             composition_id,
             os.path.join("out", output_filename)
         ]
+
+        if props:
+            cmd.extend(["--props", json.dumps(props)])
         
         logger.info(f"Rendering video with command: {' '.join(cmd)}")
         try:
-            # Shell=True might help on some Windows setups if executable path is tricky, 
-            # but usually npx.cmd is enough. 
             subprocess.run(cmd, cwd=self.remotion_dir, check=True)
             return os.path.join(self.output_dir, output_filename)
         except subprocess.CalledProcessError as e:

@@ -423,26 +423,55 @@ Transcription failed - placeholder mode
                         if "-->" not in line and line.strip() and not line.strip().isdigit():
                             transcript_text += line.strip() + " "
             
-            # Step 5: Analyze Content & Generate Remotion
-            job.update_status(ProcessingStatus.ADDING_SUBTITLES, progress=60) # Keeping similar enum status for compatibility
-            update_progress("Analyzing content with AI...", 60)
+            # Step 5: Analyze Content, Detect Highlights & Generate Plan
+            job.update_status(ProcessingStatus.ADDING_SUBTITLES, progress=60)
+            update_progress("Analyzing content and detecting highlights...", 60)
             
             # Dynamic imports
             from processing.transcript_analyzer import TranscriptAnalyzer
+            from processing.highlight_detector import HighlightDetector
+            from processing.video_plan_generator import VideoPlanGenerator
             from processing.remotion_generator import RemotionGenerator
             
             analyzer = TranscriptAnalyzer()
+            detector = HighlightDetector()
+            plan_gen = VideoPlanGenerator()
             remotion_gen = RemotionGenerator(remotion_dir=os.path.abspath("./remotion-video"))
             
-            scenes = analyzer.analyze(transcript_text)
-            update_progress(f"Generating video scenes...", 70)
+            # Extract structured segments from transcript/SRT
+            segments = analyzer.analyze(transcript_text, srt_path=srt_path)
             
-            remotion_gen.generate_composition(scenes, video_path=edited_path)
+            # Detect key highlights
+            highlights = detector.detect_highlights(segments)
+            update_progress(f"Detected {len(highlights)} highlights...", 65)
+            
+            # Generate professional editing plan
+            video_info = self._get_video_info(edited_path)
+            plan = plan_gen.generate_plan(
+                job_id=job.id,
+                original_filename=job.original_filename,
+                video_duration=video_info.get('duration', 30.0),
+                fps=30, # Default to 30 as per Remotion config
+                width=video_info.get('width', 1920),
+                height=video_info.get('height', 1080),
+                highlights=highlights,
+                transcript_segments=segments
+            )
+            
+            # Save plan and generate Remotion code
+            plan_path = os.path.join(temp_dir, "plan.json")
+            plan_gen.save_plan(plan, plan_path)
+            
+            update_progress(f"Generating professional video composition...", 70)
+            remotion_gen.generate_from_plan(plan_path, video_path=edited_path)
             
             # Step 6: Render Final Video with Remotion
             update_progress("Rendering pro video with Remotion...", 80)
             final_output_filename = f"final_{job.id}.mp4"
-            final_output_path = remotion_gen.render_video("GeneratedVideo", final_output_filename) # Will be in remotion-video/out/
+            
+            # Pass duration to Remotion via props for calculateMetadata
+            render_props = {"durationInFrames": plan["composition"]["durationInFrames"]}
+            final_output_path = remotion_gen.render_video("GeneratedVideo", final_output_filename, props=render_props)
             
             # Step 7: Collect processed video metadata
             update_progress("Collecting video metadata...", 90)
