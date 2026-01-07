@@ -92,30 +92,41 @@ class HighlightDetector:
             ])
             
             prompt = f"""
-            Analyze this video transcript and identify the most important moments (highlights).
-            For each highlight, determine:
-            - Type: key_point, example, climax, or transition
-            - Start and end times
-            - Importance score (0.0 to 1.0)
-            - Brief reason why it's important
+            Analyze this video transcript to create a professional video editing plan.
+            Identify key moments, high-impact quotes, and visual opportunities.
             
-            Focus on:
-            - Key points or main ideas
-            - Emotional peaks or exciting moments
-            - Examples or demonstrations
-            - Natural transition points between topics
+            For each highlight, provide:
+            - type: 
+                'key_point': Main educational/informative points.
+                'callout': Moments requiring a text box or annotation on screen.
+                'zoom': Significant statements where the camera should zoom in for emphasis.
+                'impact_text': Short, punchy words (1-3 words) for flashy text effects.
+                'transition': Natural topic shifts.
+            - start_time / end_time: Precise timestamps in seconds.
+            - text: The exact text from the transcript (for captions) or a summary for overlays.
+            - importance: 0.0 to 1.0.
+            - metadata: Additional info like 'zoom_level' (1.1-1.3), 'font_style', or 'effect_name'.
             
             Transcript:
             {transcript_with_time}
             
-            Return ONLY valid JSON array in this format:
+            Return ONLY a valid JSON array of objects:
             [
                 {{
-                    "type": "key_point",
-                    "start_time": 10.5,
-                    "end_time": 15.2,
-                    "importance": 0.85,
-                    "reason": "Main concept explained"
+                    "type": "zoom",
+                    "start_time": 12.4,
+                    "end_time": 15.0,
+                    "text": "The fastest way to change your life",
+                    "importance": 0.9,
+                    "metadata": {{ "zoom_level": 1.2, "effect": "smooth" }}
+                }},
+                {{
+                    "type": "impact_text",
+                    "start_time": 25.5,
+                    "end_time": 27.0,
+                    "text": "NEVER QUIT",
+                    "importance": 0.95,
+                    "metadata": {{ "style": "glitch" }}
                 }}
             ]
             """

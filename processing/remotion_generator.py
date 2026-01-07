@@ -24,8 +24,8 @@ class RemotionGenerator:
             "KineticText": "./components/text/KineticText",
             "GlitchText": "./components/text/GlitchText",
             "NeonText": "./components/text/NeonText",
+            "TypewriterText": "./components/text/TypewriterText",
             "ChartAnimation": "./components/animation/ChartAnimation",
-            "ContentScene": "./scenes/ContentScene",
             "HighlightMarker": "./components/overlay/HighlightMarker",
             "ProgressBar": "./components/overlay/ProgressBar",
             "KeyPointCallout": "./components/overlay/KeyPointCallout"
@@ -33,7 +33,7 @@ class RemotionGenerator:
 
     def generate_from_plan(self, plan_path: str, video_path: str = None, output_file: str = "src/GeneratedVideo.tsx"):
         """
-        Generate Remotion TSX from a plan.json file.
+        Generate Remotion TSX from a detailed 3-track plan.json file.
         """
         if not os.path.exists(plan_path):
             raise FileNotFoundError(f"Plan file not found: {plan_path}")
@@ -45,7 +45,16 @@ class RemotionGenerator:
         if video_path and os.path.exists(video_path):
             public_dir = os.path.join(self.remotion_dir, "public")
             os.makedirs(public_dir, exist_ok=True)
-            dest_video = os.path.join(public_dir, "input.mp4")
+            
+            # Determine target filename from plan or default to input.mp4
+            media_tracks = plan.get("tracks", {}).get("media", [])
+            if media_tracks:
+                source_name = media_tracks[0].get("source", "input.mp4")
+                target_filename = os.path.basename(source_name)
+            else:
+                target_filename = "input.mp4"
+                
+            dest_video = os.path.join(public_dir, target_filename)
             shutil.copy2(video_path, dest_video)
             logger.info(f"Copied input video to {dest_video}")
 
@@ -62,36 +71,28 @@ class RemotionGenerator:
         with open(output_path, "w", encoding='utf-8') as f:
             f.write(full_content)
             
-        logger.info(f"Generated professional Remotion composition at {output_path}")
+        logger.info(f"Generated 3-track Remotion composition at {output_path}")
         return output_path
 
     def _get_imports_from_plan(self, plan: Dict[str, Any]) -> List[str]:
-        """Dynamically generate import statements based on plan content."""
+        """Dynamically generate import statements based on plan tracks."""
         used_components: Set[str] = set()
-        used_transitions: Set[str] = set()
         
-        for seq in plan.get("sequences", []):
-            for layer in seq.get("layers", []):
-                comp = layer.get("component")
-                if comp and comp != "OffthreadVideo":
-                    used_components.add(comp)
+        tracks = plan.get("tracks", {})
+        for track_name in tracks:
+            for item in tracks[track_name]:
+                name = item.get("name")
+                if name and name != "MainVideo":
+                    used_components.add(name)
             
-            trans = seq.get("transition")
-            if trans:
-                used_transitions.add(trans.get("type"))
-                
         imports = [
-            'import { TransitionSeries, linearTiming } from "@remotion/transitions";',
-            'import { OffthreadVideo, staticFile, AbsoluteFill } from "remotion";',
+            'import { Sequence, staticFile, AbsoluteFill } from "remotion";',
+            'import { OffthreadVideo } from "remotion";',
             'import React from "react";'
         ]
         
-        # Add transition imports
-        for t in used_transitions:
-            imports.append(f'import {{ {t} }} from "@remotion/transitions/{t}";')
-            
         # Add component imports
-        for comp in used_components:
+        for comp in sorted(used_components):
             path = self.component_paths.get(comp)
             if path:
                 imports.append(f'import {{ {comp} }} from "{path}";')
@@ -101,67 +102,54 @@ class RemotionGenerator:
         return imports
 
     def _build_composition_code(self, plan: Dict[str, Any]) -> str:
-        """Build the main GeneratedVideo component body."""
-        sequences = plan.get("sequences", [])
+        """Build the main GeneratedVideo component with 3-track timeline."""
+        fps = plan.get("project", {}).get("fps", 30)
+        tracks = plan.get("tracks", {})
         
         code = "export const GeneratedVideo: React.FC = () => {\n"
         code += "  return (\n"
-        code += "    <TransitionSeries>\n"
+        code += "    <AbsoluteFill style={{ backgroundColor: 'black' }}>\n"
         
-        for i, seq in enumerate(sequences):
-            duration = seq.get("durationInFrames", 30)
-            seq_id = seq.get("id", f"seq_{i}")
-            
-            code += f"      {{/* {seq_id} - {seq.get('type')} */}}\n"
-            code += f"      <TransitionSeries.Sequence durationInFrames={{{duration}}}>\n"
-            
-            # Use AbsoluteFill for intro/outro/content layers
-            code += "        <AbsoluteFill>\n"
-            
-            for layer in seq.get("layers", []):
-                code += self._render_layer(layer)
-                
-            code += "        </AbsoluteFill>\n"
-            code += "      </TransitionSeries.Sequence>\n\n"
-            
-            # Add transition
-            trans = seq.get("transition")
-            if trans and i < len(sequences) - 1:
-                t_type = trans.get("type", "fade")
-                t_dur = trans.get("durationInFrames", 30)
-                t_dir = trans.get("direction")
-                
-                presentation = f"{t_type}({{ direction: '{t_dir}' }})" if t_dir else f"{t_type}()"
-                
-                code += f"      <TransitionSeries.Transition\n"
-                code += f"        presentation={{{presentation}}}\n"
-                code += f"        timing={{linearTiming({{ durationInFrames: {t_dur} }})}}\n"
-                code += f"      />\n\n"
-                
-        code += "    </TransitionSeries>\n"
+        # 1. Media Layer (Bottom)
+        code += "      {/* Media Track */}\n"
+        for item in tracks.get("media", []):
+            start_frame = int(item.get("start", 0) * fps)
+            duration_frames = int(item.get("duration", 0) * fps)
+            volume = item.get("volume", 1.0)
+            source = item.get("source", "input.mp4")
+            # If source is a full path, just take the filename
+            source_filename = os.path.basename(source)
+            code += f"      <Sequence from={{{start_frame}}} durationInFrames={{{duration_frames}}}>\n"
+            code += f'        <OffthreadVideo src={{staticFile("{source_filename}")}} volume={{{volume}}} />\n'
+            code += "      </Sequence>\n"
+
+        # 2. Background Layer
+        code += "\n      {/* Background Track */}\n"
+        for item in tracks.get("background", []):
+            start_frame = int(item.get("start", 0) * fps)
+            duration_frames = int(item.get("duration", 0) * fps)
+            name = item.get("name")
+            props = self._props_to_jsx(item.get("props", {}))
+            code += f"      <Sequence from={{{start_frame}}} durationInFrames={{{duration_frames}}}>\n"
+            code += f"        <{name}{props} />\n"
+            code += "      </Sequence>\n"
+
+        # 3. Overlays Layer (Top)
+        code += "\n      {/* Overlays Track */}\n"
+        for item in tracks.get("overlays", []):
+            start_frame = int(item.get("start", 0) * fps)
+            duration_frames = int(item.get("duration", 0) * fps)
+            name = item.get("name")
+            props = self._props_to_jsx(item.get("props", {}))
+            code += f"      <Sequence from={{{start_frame}}} durationInFrames={{{duration_frames}}}>\n"
+            code += f"        <{name}{props} />\n"
+            code += "      </Sequence>\n"
+
+        code += "    </AbsoluteFill>\n"
         code += "  );\n"
         code += "};\n"
         
         return code
-
-    def _render_layer(self, layer: Dict[str, Any]) -> str:
-        """Convert a layer object to JSX code."""
-        comp = layer.get("component")
-        props = layer.get("props", {})
-        style = layer.get("style", {})
-        
-        jsx_props = self._props_to_jsx(props)
-        jsx_style = ""
-        if style:
-            jsx_style = f" style={{{json.dumps(style)}}}"
-            
-        if comp == "OffthreadVideo":
-            return f"          <OffthreadVideo{jsx_props}{jsx_style} />\n"
-        
-        if style:
-            return f"          <div{jsx_style}>\n            <{comp}{jsx_props} />\n          </div>\n"
-        else:
-            return f"          <{comp}{jsx_props} />\n"
 
     def _props_to_jsx(self, props: Dict[str, Any]) -> str:
         """Convert Python dictionary to JSX props string."""
@@ -171,11 +159,7 @@ class RemotionGenerator:
         parts = []
         for key, value in props.items():
             if isinstance(value, str):
-                if value.startswith("staticFile("):
-                    # Handle staticFile calls
-                    parts.append(f'{key}={{{value}}}')
-                else:
-                    parts.append(f'{key}="{value}"')
+                parts.append(f'{key}="{value}"')
             elif isinstance(value, bool):
                 parts.append(f'{key}={{{str(value).lower()}}}')
             elif isinstance(value, (int, float, dict, list)):

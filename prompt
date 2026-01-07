@@ -1,12 +1,14 @@
-Chức năng t muốn làm: 
+Vấn đề hiện tại: 
 
-- Hiện tại đã có kho components cần thiết cho edit video cơ bản. 
-- Bây giờ t cần nó giống như một video đã được edit chuyên nghiệp. 
-- Flow hoạt động: 
-+ Người dùng upload video 
-+ Transcibe video -> AI phân tích 
-+ Highlight deetection. 
-+ Tạo plan.json, bao gồm các highlight và các transition cần thiết. 
-+ Tạo video edit theo plan.json. 
-+ Tạo video final, bao gồm các hiệu ứng, text effect, background effect, content animation, transition
-+ Render video final
+- Vẫn còn giai đoạn adding subtitles dù ko cần thiết. 
+- Video chưa đc qua autocut để cắt bớt khoản lặng. 
+- VIdeo chỉ nghe voice, ngoài ra là các hiệu ứng ko có gì hết, video rất sơ xài.
+- Quy chuẩn cho video final: 
++ Video cần đc cắt f1. 
++ Sau đó transcribe video -> ra file srt. 
++ Sau đó dùng API LLM để phân tích video -> ra file json chứa các highlight và các transition cần thiết. 
++ Sau đó dùng remotion render ra video final. 
+
+Video cần giống như một video YT được edit chuyên nghiệp, video final cần có đủ video gốc, audio, và các hiệu ứng cần thiết.
+
+Học kiến thức và logic ở đây: https://github.com/NhiLe-Team-Webs/video-automation-ver2

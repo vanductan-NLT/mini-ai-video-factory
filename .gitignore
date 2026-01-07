@@ -39,7 +39,7 @@ logs/
 # Data directories (contain user uploads and processing files)
 data/uploads/*
 data/temp/*
-data/output/*
+# data/output/*
 !data/uploads/.gitkeep
 !data/temp/.gitkeep
 !data/output/.gitkeep

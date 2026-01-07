@@ -110,28 +110,46 @@ class VideoProcessor:
             raise VideoProcessingError("No valid input file path found")
     
     def _run_auto_editor(self, input_path: str, output_path: str, progress_callback: Optional[Callable] = None) -> bool:
-        """Run auto-editor to remove silent segments - placeholder mode"""
+        """Run auto-editor to remove silent segments"""
         try:
             if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
                 logger.info(f"Edited video already exists, skipping auto-editor: {output_path}")
                 return True
 
-            logger.info(f"Auto-editor placeholder: {input_path} -> {output_path}")
+            logger.info(f"Running auto-editor: {input_path} -> {output_path}")
             
-            # Placeholder: just copy the file
-            shutil.copy2(input_path, output_path)
-            logger.info("Auto-editor placeholder completed - file copied")
-            return True
+            # Run auto-editor to remove silence
+            cmd = [
+                'auto-editor', input_path,
+                '--no_open',
+                '--margin', '0.2sec',
+                '-o', output_path
+            ]
             
-        except Exception as e:
-            logger.error(f"Auto-editor placeholder failed: {e}")
-            return False
-                
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            
+            if result.returncode == 0:
+                logger.info("Auto-editor completed successfully")
+                return True
+            else:
+                logger.warning(f"Auto-editor failed: {result.stderr}")
+                # Fallback: just copy the file if auto-editor fails
+                shutil.copy2(input_path, output_path)
+                logger.info("Fallback: copied original file")
+                return True
+            
         except FileNotFoundError:
-            raise VideoProcessingError("auto-editor command not found. Please ensure it's installed with: pip install auto-editor")
+            logger.warning("auto-editor not installed, falling back to copy")
+            shutil.copy2(input_path, output_path)
+            return True
+        except subprocess.TimeoutExpired:
+            logger.warning("auto-editor timed out, falling back to copy")
+            shutil.copy2(input_path, output_path)
+            return True
         except Exception as e:
             logger.error(f"Auto-editor error: {e}")
-            raise VideoProcessingError(f"Auto-editor failed: {e}")
+            shutil.copy2(input_path, output_path)
+            return True
     
     def _extract_audio(self, video_path: str, audio_path: str) -> bool:
         """Extract audio from video for transcription"""
@@ -424,7 +442,7 @@ Transcription failed - placeholder mode
                             transcript_text += line.strip() + " "
             
             # Step 5: Analyze Content, Detect Highlights & Generate Plan
-            job.update_status(ProcessingStatus.ADDING_SUBTITLES, progress=60)
+            job.update_status(ProcessingStatus.ANALYZING_CONTENT, progress=60)
             update_progress("Analyzing content and detecting highlights...", 60)
             
             # Dynamic imports
@@ -458,19 +476,29 @@ Transcription failed - placeholder mode
                 transcript_segments=segments
             )
             
-            # Save plan and generate Remotion code
-            plan_path = os.path.join(temp_dir, "plan.json")
+            # Save plan to OUTPUT folder for user review (not temp)
+            plan_path = os.path.join(self.output_folder, f"plan_{job.id}.json")
             plan_gen.save_plan(plan, plan_path)
+            logger.info(f"Plan saved for review: {plan_path}")
             
             update_progress(f"Generating professional video composition...", 70)
             remotion_gen.generate_from_plan(plan_path, video_path=edited_path)
             
             # Step 6: Render Final Video with Remotion
+            job.update_status(ProcessingStatus.RENDERING, progress=80)
             update_progress("Rendering pro video with Remotion...", 80)
             final_output_filename = f"final_{job.id}.mp4"
             
-            # Pass duration to Remotion via props for calculateMetadata
-            render_props = {"durationInFrames": plan["composition"]["durationInFrames"]}
+            # Pass metadata to Remotion via props
+            fps = plan.get("project", {}).get("fps", 30)
+            duration = plan.get("project", {}).get("duration", 30)
+            width = plan.get("project", {}).get("width", 1920)
+            height = plan.get("project", {}).get("height", 1080)
+            render_props = {
+                "durationInFrames": int(duration * fps),
+                "width": width,
+                "height": height
+            }
             final_output_path = remotion_gen.render_video("GeneratedVideo", final_output_filename, props=render_props)
             
             # Step 7: Collect processed video metadata
