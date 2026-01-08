@@ -1,9 +1,14 @@
-Các chức năng t muốn làm tiếp theo:
+Vấn đề hiện tại: 
 
-- Thêm text effect, background effect, content animation, transition cho video.
-- Tech stack: remotion. 
-- Cashc thiết lập: 
-+ npx create-video@latest
-+ Ko tạo lại các effect từ đầu, mà dùng những cái có sẵn trong file: remotion_templates.md
-+ về transition: npm i --save-exact @remotion/transitions@4.0.399, ko cần build lại từ đầu mà dũng những cái có sẵn trong remotion_transition.md    
-+ Video ko cần subtitle nữa, loại bỏ cái này. 
+- Vẫn còn giai đoạn adding subtitles dù ko cần thiết. 
+- Video chưa đc qua autocut để cắt bớt khoản lặng. 
+- VIdeo chỉ nghe voice, ngoài ra là các hiệu ứng ko có gì hết, video rất sơ xài.
+- Quy chuẩn cho video final: 
++ Video cần đc cắt f1. 
++ Sau đó transcribe video -> ra file srt. 
++ Sau đó dùng API LLM để phân tích video -> ra file json chứa các highlight và các transition cần thiết. 
++ Sau đó dùng remotion render ra video final. 
+
+Video cần giống như một video YT được edit chuyên nghiệp, video final cần có đủ video gốc, audio, và các hiệu ứng cần thiết.
+
+Học kiến thức và logic ở đây: https://github.com/NhiLe-Team-Webs/video-automation-ver2

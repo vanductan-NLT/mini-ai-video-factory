@@ -429,6 +429,7 @@
                     actionButton = `
                     <a href="/preview/${job.id}" class="btn btn-primary" style="margin-left: 0.5rem;">👁️ Preview</a>
                     <a href="/download/${job.id}" class="btn btn-success" style="margin-left: 0.5rem;">📥 Download</a>
+                    <button onclick="retryJob('${job.id}')" class="btn" style="margin-left: 0.5rem; background-color: #6c757d; color: white;">🔄 Retry</button>
                 `;
                 } else if (job.status === 'failed') {
                     actionButton = `<button onclick="retryJob('${job.id}')" class="btn btn-warning" style="margin-left: 1rem; background-color: #ffc107; color: #212529;">🔄 Retry</button>`;

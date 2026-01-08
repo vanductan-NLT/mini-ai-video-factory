@@ -13,7 +13,8 @@ class ProcessingStatus(Enum):
     STORING = "storing"
     AUTO_EDITING = "auto_editing"
     TRANSCRIBING = "transcribing"
-    ADDING_SUBTITLES = "adding_subtitles"
+    ANALYZING_CONTENT = "analyzing_content"
+    RENDERING = "rendering"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -123,7 +124,8 @@ class ProcessingJob:
             ProcessingStatus.STORING: "Storing file...",
             ProcessingStatus.AUTO_EDITING: "Auto-editing video...",
             ProcessingStatus.TRANSCRIBING: "Generating subtitles...",
-            ProcessingStatus.ADDING_SUBTITLES: "Adding subtitles...",
+            ProcessingStatus.ANALYZING_CONTENT: "Analyzing content...",
+            ProcessingStatus.RENDERING: "Rendering video...",
             ProcessingStatus.COMPLETED: "Completed",
             ProcessingStatus.FAILED: "Failed"
         }

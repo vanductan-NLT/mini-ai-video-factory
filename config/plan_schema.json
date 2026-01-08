@@ -1,0 +1,209 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Remotion Video Plan Schema",
+    "description": "Schema for AI-generated video editing plans compatible with Remotion composition",
+    "type": "object",
+    "required": [
+        "composition",
+        "metadata",
+        "sequences"
+    ],
+    "properties": {
+        "composition": {
+            "type": "object",
+            "description": "Remotion composition configuration",
+            "required": [
+                "id",
+                "width",
+                "height",
+                "fps",
+                "durationInFrames"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Composition ID for Remotion (e.g., 'GeneratedVideo')"
+                },
+                "width": {
+                    "type": "integer",
+                    "description": "Video width in pixels",
+                    "enum": [
+                        1920,
+                        1080
+                    ]
+                },
+                "height": {
+                    "type": "integer",
+                    "description": "Video height in pixels",
+                    "enum": [
+                        1080,
+                        1920
+                    ]
+                },
+                "fps": {
+                    "type": "integer",
+                    "description": "Frames per second",
+                    "default": 30
+                },
+                "durationInFrames": {
+                    "type": "integer",
+                    "description": "Total duration in frames",
+                    "minimum": 1
+                }
+            }
+        },
+        "metadata": {
+            "type": "object",
+            "description": "Video metadata",
+            "properties": {
+                "video_id": {
+                    "type": "string"
+                },
+                "original_filename": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
+        "sequences": {
+            "type": "array",
+            "description": "Array of video sequences (maps to TransitionSeries.Sequence)",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "type",
+                    "durationInFrames",
+                    "startFrame",
+                    "endFrame",
+                    "layers"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique sequence identifier"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "intro",
+                            "content",
+                            "highlight",
+                            "transition",
+                            "outro"
+                        ],
+                        "description": "Sequence type for AI categorization"
+                    },
+                    "durationInFrames": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Duration of this sequence in frames"
+                    },
+                    "startFrame": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Start frame (for validation)"
+                    },
+                    "endFrame": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "End frame (for validation)"
+                    },
+                    "highlight": {
+                        "type": "object",
+                        "description": "AI-detected highlight information",
+                        "properties": {
+                            "importance": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1,
+                                "description": "Importance score (0-1)"
+                            },
+                            "reason": {
+                                "type": "string",
+                                "description": "Why this segment was highlighted"
+                            }
+                        }
+                    },
+                    "layers": {
+                        "type": "array",
+                        "description": "Visual layers in rendering order (bottom to top)",
+                        "minItems": 1,
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "type",
+                                "component"
+                            ],
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "video",
+                                        "background",
+                                        "text",
+                                        "animation",
+                                        "overlay"
+                                    ],
+                                    "description": "Layer type for organization"
+                                },
+                                "component": {
+                                    "type": "string",
+                                    "description": "Remotion component name (e.g., 'SlideText', 'MatrixRain')"
+                                },
+                                "props": {
+                                    "type": "object",
+                                    "description": "Component props (will be converted to JSX props)",
+                                    "additionalProperties": true
+                                },
+                                "style": {
+                                    "type": "object",
+                                    "description": "CSS style object for wrapper div",
+                                    "additionalProperties": true
+                                }
+                            }
+                        }
+                    },
+                    "transition": {
+                        "type": "object",
+                        "description": "Transition to next sequence (if not last)",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "slide",
+                                    "fade",
+                                    "wipe",
+                                    "flip",
+                                    "clockWipe"
+                                ],
+                                "description": "Transition type from @remotion/transitions"
+                            },
+                            "direction": {
+                                "type": "string",
+                                "enum": [
+                                    "from-left",
+                                    "from-right",
+                                    "from-top",
+                                    "from-bottom",
+                                    "from-top-left"
+                                ],
+                                "description": "Transition direction (where applicable)"
+                            },
+                            "durationInFrames": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "default": 30,
+                                "description": "Transition duration in frames"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

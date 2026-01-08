@@ -1,0 +1,89 @@
+{
+  "project": {
+    "duration": 57.27,
+    "fps": 30,
+    "width": 1280,
+    "height": 720,
+    "jobId": "5d1bbf47-c810-4c1c-a274-dcabfcfc784e"
+  },
+  "tracks": {
+    "overlays": [
+      {
+        "start": 0.0,
+        "duration": 57.27,
+        "type": "overlay",
+        "name": "ProgressBar",
+        "props": {}
+      },
+      {
+        "start": 8.0,
+        "duration": 4.0,
+        "type": "overlay",
+        "name": "KeyPointCallout",
+        "props": {
+          "text": "Content segment"
+        }
+      },
+      {
+        "start": 26.0,
+        "duration": 4.0,
+        "type": "overlay",
+        "name": "KeyPointCallout",
+        "props": {
+          "text": "Content segment"
+        }
+      },
+      {
+        "start": 38.0,
+        "duration": 6.0,
+        "type": "overlay",
+        "name": "KeyPointCallout",
+        "props": {
+          "text": "Content segment"
+        }
+      },
+      {
+        "start": 0.0,
+        "duration": 3.0,
+        "type": "caption",
+        "name": "TypewriterText",
+        "props": {
+          "text": "This is a message for people who think they are done, for people who think that their time has passed and it's over.",
+          "fontSize": "3rem"
+        }
+      },
+      {
+        "start": 44.0,
+        "duration": 3.0,
+        "type": "caption",
+        "name": "TypewriterText",
+        "props": {
+          "text": "It's a beautiful world out there. There are billions of people.",
+          "fontSize": "3rem"
+        }
+      }
+    ],
+    "background": [
+      {
+        "start": 0.0,
+        "duration": 57.27,
+        "type": "background",
+        "name": "ParticleBackground",
+        "props": {
+          "color": "rgba(255, 255, 255, 0.2)",
+          "count": 40
+        }
+      }
+    ],
+    "media": [
+      {
+        "start": 0.0,
+        "duration": 57.27,
+        "type": "video",
+        "name": "MainVideo",
+        "source": "It's Not Over Yet, There's Still Time to Turn Things Around - The Math Sorcerer (720p, h264).mp4",
+        "volume": 1.0
+      }
+    ]
+  }
+}

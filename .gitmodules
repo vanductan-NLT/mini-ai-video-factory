@@ -1,0 +1,3 @@
+[submodule "remotion-video"]
+	path = remotion-video
+	url = https://github.com/vanductan-NLT/remotion-video-demo.git
